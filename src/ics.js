@@ -18,7 +18,7 @@ const ZERO_BT = 0,         // Scalefactors and spectral data are all zero.
 const SF_DELTA = 60,
       SF_OFFSET = 200;
 
-function ICS(frameLength) {
+function ICStream(frameLength) {
     this.info = new ICSInfo();
     this.bandTypes = new Int32Array(MAX_SECTIONS);
     this.sectEnd = new Int32Array(MAX_SECTIONS);
@@ -27,7 +27,7 @@ function ICS(frameLength) {
     this.randomState = 0x1F2E3D4C;
 }
 
-ICS.prototype = {
+ICStream.prototype = {
     decode: function(stream, config, commonWindow) {
         this.globalGain = stream.read(8);
         
@@ -37,31 +37,32 @@ ICS.prototype = {
         this.decodeBandTypes(stream, config);
         this.decodeScaleFactors(stream);
         
-        if (stream.readOne()) { // pulseDataPresent
-            if (this.info.windowSequence[0] === EIGHT_SHORT_SEQUENCE)
+        if (stream.readOne()) { // pulse present
+            if (this.info.windowSequence === EIGHT_SHORT_SEQUENCE)
                 throw new Error("Pulse tool not allowed in eight short sequence.");
                 
             this.decodePulseData();
         }
         
-        if (stream.readOne()) { // tnsDataPresent
-            // TODO: TNS
+        if (stream.readOne()) { // tns data present
+            throw new Error("TODO: decode_tns")
         }
         
-        if (stream.readOne()) { // gainControlPresent
-            // TODO: GainControl
+        if (stream.readOne()) { // gain control present
+            throw new Error("TODO: decode gain control/SSR")
         }
         
         this.decodeSpectralData(stream);
     },
     
     decodeBandTypes: function(stream, config) {
-        var bits = this.info.windowSequence[0] === EIGHT_SHORT_SEQUENCE ? 3 : 5,
+        var bits = this.info.windowSequence === EIGHT_SHORT_SEQUENCE ? 3 : 5,
             groupCount = this.info.groupCount,
             maxSFB = this.info.maxSFB,
             bandTypes = this.bandTypes,
             sectEnd = this.sectEnd,
-            idx = 0;
+            idx = 0,
+            escape = (1 << bits) - 1;
         
         for (var g = 0; g < groupCount; g++) {
             var k = 0;
@@ -73,7 +74,7 @@ ICS.prototype = {
                     throw new Error("Invalid band type");
                     
                 var incr;
-                while ((incr = stream.read(bits)) === (1 << bits) - 1)
+                while ((incr = stream.read(bits)) === escape)
                     end += incr;
                     
                 end += incr;
@@ -104,7 +105,7 @@ ICS.prototype = {
                 switch (this.bandTypes[idx]) {
                     case ZERO_BT:
                         for (; i < runEnd; i++) {
-                            sf[idx++] = 0;
+                            scaleFactors[idx++] = 0;
                         }
                         break;
                         
@@ -112,7 +113,7 @@ ICS.prototype = {
                     case INTENSITY_BT2:
                         for(; i < runEnd; i++) {
                             offset[2] += Huffman.decodeScaleFactor(stream) - SF_DELTA;
-                            tmp = Math.min(Math.max(offset[2], -155), 100);
+                            var tmp = Math.min(Math.max(offset[2], -155), 100);
                             scaleFactors[idx++] = SCALEFACTOR_TABLE[-tmp + SF_OFFSET];
                         }
                         break;
@@ -122,11 +123,10 @@ ICS.prototype = {
                             if (noiseFlag) {
                                 offset[1] += stream.readSmall(9) - 256;
                                 noiseFlag = false;
-                            }
-                            else {
+                            } else {
                                 offset[1] += Huffman.decodeScaleFactor(stream) - SF_DELTA;
                             }
-                            tmp = Math.min(Math.max(offset[1], -100), 155);
+                            var tmp = Math.min(Math.max(offset[1], -100), 155);
                             scaleFactors[idx++] = -SCALEFACTOR_TABLE[tmp + SF_OFFSET];
                         }
                         break;
@@ -135,7 +135,7 @@ ICS.prototype = {
                         for(; i < runEnd; i++) {
                             offset[0] += Huffman.decodeScaleFactor(stream) - SF_DELTA;
                             if(offset[0] > 255) 
-                                throw new Error("scalefactor out of range: " + offset[0]);
+                                throw new Error("Scalefactor out of range: " + offset[0]);
                                 
                             scaleFactors[idx++] = SCALEFACTOR_TABLE[offset[0] - 100 + SF_OFFSET];
                         }
@@ -150,9 +150,10 @@ ICS.prototype = {
             pulseSWB = stream.readSmall(6);
             
         if (pulseSWB >= this.info.swbCount)
-            throw new Error("pulse SWB out of range: " + pulseSWB);
+            throw new Error("Pulse SWB out of range: " + pulseSWB);
             
         if (!this.pulseOffset || this.pulseOffset.length !== pulseCount) {
+            // only reallocate if needed
             this.pulseOffset = new Int32Array(pulseCount);
             this.pulseAmp = new Int32Array(pulseCount);
         }
@@ -190,18 +191,19 @@ ICS.prototype = {
                     off = groupOff + offsets[sfb],
                     width = offsets[sfb + 1] - offsets[sfb];
                     
-                if (hcb >= INTENSITY_BT2) {
+                if (hcb === ZERO_BT || hcb >= INTENSITY_BT2) {
                     for (var group = 0; group < groupLen; group++, off += 128) {
                         for (var i = off; i < off + width; i++) {
                             data[i] = 0;
                         }
                     }
-                } else if (hcb == NOISE_BT) {
+                } else if (hcb === NOISE_BT) {
+                    // fill with random values
                     for (var group = 0; group < groupLen; group++, off += 128) {
                         var energy = 0;
                         
                         for (var k = 0; k < width; k++) {
-                            this.randomState *= 1664525+1013904223;
+                            this.randomState *= 1664525 + 1013904223;
                             data[off + k] = this.randomState;
                             energy += data[off + k] * data[off + k];
                         }
