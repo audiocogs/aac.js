@@ -158,5 +158,106 @@ AACDecoder = Decoder.extend(function() {
         }
         
         console.log(elements);
+        this.process(elements);
+    }
+    
+    this.prototype.process = function(elements) {
+        var channels = this.config.chanConfig;
+        
+        // if (channels === 1 && psPresent)
+        // sbrPresent?
+        var mult = 1;
+        
+        var len = mult * this.config.frameLength;
+        var data = [];
+        
+        var channel = 0;
+        for (var i = 0; i < elements.length && channel < channels; i++) {
+            var e = elements[i];
+            
+            if (e instanceof ICStream) { // SCE or LFE element
+                channel += this.processSingle(e, channel);
+            } else if (e instanceof CPEElement) {
+                channel += this.processPair(e, channel);
+            } else {
+                throw new Error("Unknown element found.")
+            }
+        }
+    }
+    
+    this.prototype.processPair = function(element, channel) {
+        var profile = this.config.profile,
+            left = element.left,
+            right = element.right,
+            l_info = left.info,
+            r_info = right.info,
+            l_data = left.data,
+            r_data = right.data;
+            
+        if (element.commonWindow && element.maskPresent)
+            throw new Error("MS unimplemented");
+            
+        if (profile === AOT_AAC_MAIN)
+            throw new Error("Main prediction unimplemented");
+            
+        // IS
+            
+        if (profile === AOT_AAC_LTP)
+            throw new Error("LTP prediction unimplemented");
+            
+        this.applyChannelCoupling(element, CCEElement.BEFORE_TNS, l_data, r_data);
+        
+        if (left.tnsPresent)
+            throw new Error("TNS processing unimplemented");
+            
+        if (right.tnsPresent)
+            throw new Error("TNS processing unimplemented");
+        
+        this.applyChannelCoupling(element, CCEElement.AFTER_TNS, l_data, r_data);
+        
+        // filterbank
+        
+        if (profile === AOT_AAC_LTP)
+            throw new Error("LTP prediction unimplemented");
+        
+        this.applyChannelCoupling(element, CCEElement.AFTER_IMDCT, data[channel], data[channel + 1]);
+        
+        if (left.gainPresent)
+            throw new Error("Gain control not implemented");
+            
+        if (right.gainPresent)
+            throw new Error("Gain control not implemented");
+            
+        if (this.sbrPresent)
+            throw new Error("SBR not implemented");
+    }
+    
+    this.prototype.applyChannelCoupling = function(element, couplingPoint, data1, data2) {
+        var cces = this.cces,
+            isChannelPair = element instanceof CPEElement,
+            applyCoupling = couplingPoint === CCEElement.AFTER_IMDCT ? 'applyIndependentCoupling' : 'applyDependentCoupling';
+        
+        for (var i = 0; i < cces.length; i++) {
+            var cce = cces[i],
+                index = 0;
+                
+            if (cce.couplingPoint === couplingPoint) {
+                for (var c = 0; c < cce.coupledCount; c++) {
+                    var chSelect = cce.chSelect[c];
+                    if (cce.channelPair[c] === isChannelPair && cce.idSelect[c] === element.id) {
+                        if (chSelect !== 1) {
+                            cce[applyCoupling](index, data1);
+                            if (chSelect) index++;
+                        }
+                        
+                        if (chSelect !== 2)
+                            cce[applyCoupling](index++, data2);
+                            
+                    } else {
+                        index += 1 + (chSelect === 3 ? 1 : 0);
+                    }
+                }
+            }
+        }
     }
 })
