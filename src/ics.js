@@ -38,18 +38,18 @@ ICStream.prototype = {
         this.decodeBandTypes(stream, config);
         this.decodeScaleFactors(stream);
         
-        if (stream.readOne()) { // pulse present
+        if (this.pulsePresent = stream.readOne()) {
             if (this.info.windowSequence === EIGHT_SHORT_SEQUENCE)
                 throw new Error("Pulse tool not allowed in eight short sequence.");
                 
             this.decodePulseData();
         }
         
-        if (stream.readOne()) { // tns data present
+        if (this.tnsPresent = stream.readOne()) {
             throw new Error("TODO: decode_tns")
         }
         
-        if (stream.readOne()) { // gain control present
+        if (this.gainPresent = stream.readOne()) {
             throw new Error("TODO: decode gain control/SSR")
         }
         

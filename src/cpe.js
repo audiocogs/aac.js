@@ -16,14 +16,15 @@ function CPEElement(frameLength) {
 CPEElement.prototype.decode = function(stream, config) {
     var left = this.left,
         right = this.right,
-        ms_used = this.ms_used,
-        commonWindow = stream.readOne();
+        ms_used = this.ms_used;
     
-    if (commonWindow) {
+    if (this.commonWindow = stream.readOne()) {
         left.info.decode(stream, config, true);
         right.info = left.info;
         
         var mask = stream.readSmall(2);
+        this.maskPresent = !!mask;
+        
         switch (mask) {
             case MASK_TYPE_USED:
                 var len = left.info.groupCount * left.info.maxSFB;
@@ -45,6 +46,6 @@ CPEElement.prototype.decode = function(stream, config) {
         }
     }
     
-    left.decode(stream, config, commonWindow);
-    right.decode(stream, config, commonWindow);
+    left.decode(stream, config, this.commonWindow);
+    right.decode(stream, config, this.commonWindow);
 }

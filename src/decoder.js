@@ -106,7 +106,7 @@ AACDecoder = Decoder.extend(function() {
             elementType = null;
             
         while ((elementType = stream.readSmall(3)) !== END_ELEMENT) {
-            var elementId = stream.readSmall(4);
+            var id = stream.readSmall(4);
             
             switch (elementType) {
                 case SCE_ELEMENT:
@@ -114,6 +114,7 @@ AACDecoder = Decoder.extend(function() {
                     console.log('sce or lfe')
                     //this.decodeICS(false);
                     var ics = new ICStream(frameLength);
+                    ics.id = id;
                     elements.push(ics);
                     ics.decode(stream, config, false);
                     break;
@@ -121,6 +122,7 @@ AACDecoder = Decoder.extend(function() {
                 case CPE_ELEMENT:
                     console.log('cpe')
                     var cpe = new CPEElement(frameLength);
+                    cpe.id = id;
                     elements.push(cpe);
                     cpe.decode(stream, config);
                     break;
@@ -143,8 +145,8 @@ AACDecoder = Decoder.extend(function() {
                 case FIL_ELEMENT:
                     console.log('fil')
                     
-                    if (elementId === 15)
-                        elementId += stream.read(8) - 1;
+                    if (id === 15)
+                        id += stream.read(8) - 1;
                         
                     // decode_extension_payload
                     
