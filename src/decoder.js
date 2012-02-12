@@ -1,5 +1,6 @@
 //import "ics.js"
 //import "cpe.js"
+//import "cce.js"
 
 AACDecoder = Decoder.extend(function() {
     Decoder.register('mp4a', this)
@@ -98,6 +99,7 @@ AACDecoder = Decoder.extend(function() {
             this.emit('error', 'adts header') // NOPE
         }
         
+        this.cces = [];
         var elements = [],
             config = this.config,
             frameLength = config.frameLength,
@@ -125,6 +127,9 @@ AACDecoder = Decoder.extend(function() {
                     
                 case CCE_ELEMENT:
                     console.log('cce')
+                    var cce = new CCEElement(frameLength);
+                    this.cces.push(cce);
+                    cce.decode(stream, config);
                     break;
                     
                 case DSE_ELEMENT:
