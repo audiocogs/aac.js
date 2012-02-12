@@ -1,4 +1,5 @@
 //import "tables.js"
+//import "huffman.js"
 
 const MAX_SECTIONS = 120,
       MAX_WINDOW_GROUP_COUNT = 8;

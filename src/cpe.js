@@ -1,3 +1,5 @@
+//import "ics.js"
+
 const MAX_MS_MASK = 128;
 
 const MASK_TYPE_ALL_0 = 0,
@@ -20,10 +22,6 @@ CPEElement.prototype.decode = function(stream, config) {
     if (commonWindow) {
         left.info.decode(stream, config, true);
         right.info = left.info;
-        
-        if (left.info.predictorPresent && config.profile !== AOT_AAC_MAIN) {
-            //if (left.info.)
-        }
         
         var mask = stream.readSmall(2);
         switch (mask) {
