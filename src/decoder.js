@@ -199,8 +199,9 @@ AACDecoder = Decoder.extend(function() {
             
         if (profile === AOT_AAC_MAIN)
             throw new Error("Main prediction unimplemented");
-            
-        // IS
+        
+        // Intensity stereo    
+        this.processIS(element, l_data, r_data);
             
         if (profile === AOT_AAC_LTP)
             throw new Error("LTP prediction unimplemented");
@@ -230,6 +231,48 @@ AACDecoder = Decoder.extend(function() {
             
         if (this.sbrPresent)
             throw new Error("SBR not implemented");
+    }
+    
+    // Intensity stereo
+    this.prototype.processIS = function(element, left, right) {
+        var ics = element.right,
+            info = ics.info,
+            offsets = info.swbOffsets,
+            windowGroups = info.groupCount,
+            maxSFB = info.maxSFB,
+            bandTypes = ics.bandTypes,
+            sectEnd = ics.sectEnd,
+            scaleFactors = ics.scaleFactors;
+        
+        var idx = 0, groupOff = 0;
+        for (var g = 0; g < windowGroups; g++) {
+            for (var i = 0; i < maxSFB;) {
+                var end = sectEnd[idx];
+                
+                if (bandTypes[idx] >= INTENSITY_BT2) {
+                    for (; i < end; i++, idx++) {
+                        var c = bandTypes[idx] === INTENSITY_BT ? 1 : -1;
+                        if (element.maskPresent)
+                            c *= element.ms_used[idx] ? -1 : 1;
+                            
+                        var scale = c * scaleFactors[idx];
+                        for (var w = 0; w < info.groupLength[g]; w++) {
+                            var off = groupOff + w * 128 + offsets[i],
+                                len = offsets[i + 1] - offsets[i];
+                                
+                            for (var j = 0; j < len; j++) {
+                                right[off + j] = left[off + j] * scale;
+                            }
+                        }
+                    }
+                } else  {
+                    idx += end - i;
+                    i = end;
+                }
+            }
+            
+            groupOff += info.groupLength[g] * 128;
+        }
     }
     
     this.prototype.applyChannelCoupling = function(element, couplingPoint, data1, data2) {
