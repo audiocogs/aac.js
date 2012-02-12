@@ -1,4 +1,5 @@
 //import "ics.js"
+//import "cpe.js"
 
 AACDecoder = Decoder.extend(function() {
     Decoder.register('mp4a', this)
@@ -74,19 +75,6 @@ AACDecoder = Decoder.extend(function() {
                 return;
         }
         
-        // WFT is AAC_INIT_VLC_STATIC
-        // ff_aac_sbr_init (aacsbr.c:89)
-        // dsputil_init (dsputil.c:2833)
-        // ff_fmt_convert_init (fmtconvert.c:78)
-        
-        // ff_aac_tableinit (aac_tablegen.h:35)
-        // INIT_VLC_STATIC (get_bits.h:436)
-        // ff_mdct_init (mdct.c:43)
-        // ff_kbd_window_init (kbdwin.c:26)
-        // ff_init_ff_sine_windows (sinewin_tablegen.h:58)
-        
-        // cbrt_tableinit (cbrt_tablegen.h:35)
-        
         console.log(this.config);
     }
     
@@ -105,12 +93,16 @@ AACDecoder = Decoder.extend(function() {
         
         if (!stream.available(1))
             return this.once('available', this.readChunk);
-            
+        
         if (stream.peek(12) === 0xfff) {
-            this.emit('error', 'adts header')
+            this.emit('error', 'adts header') // NOPE
         }
         
-        var elementType;
+        var elements = [],
+            config = this.config,
+            frameLength = config.frameLength,
+            elementType = null;
+            
         while ((elementType = stream.readSmall(3)) !== END_ELEMENT) {
             var elementId = stream.readSmall(4);
             
@@ -118,11 +110,17 @@ AACDecoder = Decoder.extend(function() {
                 case SCE_ELEMENT:
                 case LFE_ELEMENT:
                     console.log('sce or lfe')
-                    this.decodeICS(false);
+                    //this.decodeICS(false);
+                    var ics = new ICStream(frameLength);
+                    elements.push(ics);
+                    ics.decode(stream, config, false);
                     break;
                     
                 case CPE_ELEMENT:
                     console.log('cpe')
+                    var cpe = new CPEElement(frameLength);
+                    elements.push(cpe);
+                    cpe.decode(stream, config);
                     break;
                     
                 case CCE_ELEMENT:
@@ -151,9 +149,7 @@ AACDecoder = Decoder.extend(function() {
                     return this.emit('error', 'Unknown element')
             }
         }
-    }
-    
-    this.prototype.decodeICS = function(commonWindow) {
-        new ICS(this.config.frameLength).decode(this.bitstream, this.config, commonWindow);
+        
+        console.log(elements);
     }
 })
