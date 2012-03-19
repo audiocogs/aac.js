@@ -80,13 +80,13 @@ FilterBank.prototype.process = function(info, input, output, channel) {
             
             // add second half output of previous frame to windowed output of current frame
             for(var i = 0; i < length; i++) {
-				out[i] = overlap[i] + (buf[i] * LONG_WINDOWS[windowShapePrev][i]);
-			}
+                out[i] = overlap[i] + (buf[i] * LONG_WINDOWS[windowShapePrev][i]);
+            }
 
-			// window the second half and save as overlap for next frame
-			for(var i = 0; i < length; i++) {
-				overlap[i] = buf[length + i] * LONG_WINDOWS[windowShape][length - 1 - i];
-			}
+            // window the second half and save as overlap for next frame
+            for(var i = 0; i < length; i++) {
+                overlap[i] = buf[length + i] * LONG_WINDOWS[windowShape][length - 1 - i];
+            }
             
             break;
             
@@ -95,22 +95,22 @@ FilterBank.prototype.process = function(info, input, output, channel) {
             this.mdctLong.process(input, 0, output, 0);
             
             // add second half output of previous frame to windowed output of current frame
-			for(i = 0; i<length; i++) {
-				out[i] = overlap[i] + (buf[i] * LONG_WINDOWS[windowShapePrev][i]);
-			}
+            for(i = 0; i<length; i++) {
+                out[i] = overlap[i] + (buf[i] * LONG_WINDOWS[windowShapePrev][i]);
+            }
 
-			//window the second half and save as overlap for next frame
-			for(i = 0; i < mid; i++) {
-				overlap[i] = buf[length + i];
-			}
-			
-			for(i = 0; i < shortLen; i++) {
-				overlap[mid+i] = buf[length + mid + i] * SHORT_WINDOWS[windowShape][shortLen - i - 1];
-			}
-			
-			for(i = 0; i < mid; i++) {
-				overlap[mid + shortLen + i] = 0;
-			}
+            //window the second half and save as overlap for next frame
+            for(i = 0; i < mid; i++) {
+                overlap[i] = buf[length + i];
+            }
+            
+            for(i = 0; i < shortLen; i++) {
+                overlap[mid+i] = buf[length + mid + i] * SHORT_WINDOWS[windowShape][shortLen - i - 1];
+            }
+            
+            for(i = 0; i < mid; i++) {
+                overlap[mid + shortLen + i] = 0;
+            }
             
             break;
             

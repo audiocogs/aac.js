@@ -47,46 +47,46 @@ MDCT.prototype.process = function(input, inOffset, output, outOffsetset) {
         fft = this.fft;
     
     // pre-IFFT complex multiplication
-	for(var k = 0; k < this.N4; k++) {
-		buf[k][1] = (input[inOffset + 2 * k] * sincos[k][0]) + (input[inOffset + N2 - 1 - 2 * k] * sincos[k][1]);
-		buf[k][0] = (input[inOffset + N2 - 1 - 2 * k] * sincos[k][0]) - (input[inOffset + 2 * k] * sincos[k][1]);
-	}
-	
-	// complex IFFT, non-scaling
-	fft.process(buf, false);
-	
-	// post-IFFT complex multiplication
-	for(var k = 0; k < N4; k++) {
-		tmp[0] = buf[k][0];
-		tmp[1] = buf[k][1];
-		buf[k][1] = (tmp[1] * sincos[k][0]) + (tmp[0] * sincos[k][1]);
-		buf[k][0] = (tmp[0] * sincos[k][0]) - (tmp[1] * sincos[k][1]);
-	}
-	
-	// reordering
-	for(k = 0; k<N8; k += 2) {
-		output[outOffset + 2 * k] = buf[N8 + k][1];
-		output[outOffset + 2 + 2 * k] = buf[N8 + 1 + k][1];
+    for(var k = 0; k < this.N4; k++) {
+        buf[k][1] = (input[inOffset + 2 * k] * sincos[k][0]) + (input[inOffset + N2 - 1 - 2 * k] * sincos[k][1]);
+        buf[k][0] = (input[inOffset + N2 - 1 - 2 * k] * sincos[k][0]) - (input[inOffset + 2 * k] * sincos[k][1]);
+    }
+    
+    // complex IFFT, non-scaling
+    fft.process(buf, false);
+    
+    // post-IFFT complex multiplication
+    for(var k = 0; k < N4; k++) {
+        tmp[0] = buf[k][0];
+        tmp[1] = buf[k][1];
+        buf[k][1] = (tmp[1] * sincos[k][0]) + (tmp[0] * sincos[k][1]);
+        buf[k][0] = (tmp[0] * sincos[k][0]) - (tmp[1] * sincos[k][1]);
+    }
+    
+    // reordering
+    for(k = 0; k<N8; k += 2) {
+        output[outOffset + 2 * k] = buf[N8 + k][1];
+        output[outOffset + 2 + 2 * k] = buf[N8 + 1 + k][1];
 
-		output[outOffset + 1 + 2 * k] = -buf[N8 - 1 - k][0];
-		output[outOffset + 3 + 2 * k] = -buf[N8 - 2 - k][0];
+        output[outOffset + 1 + 2 * k] = -buf[N8 - 1 - k][0];
+        output[outOffset + 3 + 2 * k] = -buf[N8 - 2 - k][0];
 
-		output[outOffset + N4 + 2 * k] = buf[k][0];
-		output[outOffset + N4 + 2 + 2 * k] = buf[1 + k][0];
+        output[outOffset + N4 + 2 * k] = buf[k][0];
+        output[outOffset + N4 + 2 + 2 * k] = buf[1 + k][0];
 
-		output[outOffset + N4 + 1 + 2 * k] = -buf[N4 - 1 - k][1];
-		output[outOffset + N4 + 3 + 2 * k] = -buf[N4 - 2 - k][1];
+        output[outOffset + N4 + 1 + 2 * k] = -buf[N4 - 1 - k][1];
+        output[outOffset + N4 + 3 + 2 * k] = -buf[N4 - 2 - k][1];
 
-		output[outOffset + N2 + 2 * k] = buf[N8 + k][0];
-		output[outOffset + N2 + 2 + 2 * k] = buf[N8 + 1 + k][0];
+        output[outOffset + N2 + 2 * k] = buf[N8 + k][0];
+        output[outOffset + N2 + 2 + 2 * k] = buf[N8 + 1 + k][0];
 
-		output[outOffset + N2 + 1 + 2 * k] = -buf[N8 - 1 - k][1];
-		output[outOffset + N2 + 3 + 2 * k] = -buf[N8 - 2 - k][1];
+        output[outOffset + N2 + 1 + 2 * k] = -buf[N8 - 1 - k][1];
+        output[outOffset + N2 + 3 + 2 * k] = -buf[N8 - 2 - k][1];
 
-		output[outOffset + N2 + N4 + 2 * k] = -buf[k][1];
-		output[outOffset + N2 + N4 + 2 + 2 * k] = -buf[1 + k][1];
+        output[outOffset + N2 + N4 + 2 * k] = -buf[k][1];
+        output[outOffset + N2 + N4 + 2 + 2 * k] = -buf[1 + k][1];
 
-		output[outOffset + N2 + N4 + 1 + 2 * k] = buf[N4 - 1 - k][0];
-		output[outOffset + N2 + N4 + 3 + 2 * k] = buf[N4 - 2 - k][0];
-	}
+        output[outOffset + N2 + N4 + 1 + 2 * k] = buf[N4 - 1 - k][0];
+        output[outOffset + N2 + N4 + 3 + 2 * k] = buf[N4 - 2 - k][0];
+    }
 }
