@@ -174,6 +174,8 @@ AACDecoder = Decoder.extend(function() {
         
         console.log(elements);
         this.process(elements);
+        
+        this.emit('data', this.data);
     }
     
     this.prototype.process = function(elements) {

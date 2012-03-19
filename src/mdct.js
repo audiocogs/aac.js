@@ -1,4 +1,5 @@
 //import "mdct_tables.js"
+//import "fft.js"
 
 function MDCT(length) {
     this.N = length;
@@ -26,17 +27,17 @@ function MDCT(length) {
             throw new Error("unsupported MDCT length: " + length);
     }
     
-    this.fft = new FFT(N4);
+    this.fft = new FFT(this.N4);
     
-    this.buf = new Array(N4);
-    for (var i = 0; i < N4; i++) {
+    this.buf = new Array(this.N4);
+    for (var i = 0; i < this.N4; i++) {
         this.buf[i] = new Float32Array(2);
     }
     
     this.tmp = new Float32Array(2);
 }
 
-MDCT.prototype.process = function(input, inOffset, output, outOffsetset) {
+MDCT.prototype.process = function(input, inOffset, output, outOffset) {
     // local access
     var N2 = this.N2,
         N4 = this.N4,

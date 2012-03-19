@@ -80,7 +80,7 @@ FilterBank.prototype.process = function(info, input, output, channel) {
             
             // add second half output of previous frame to windowed output of current frame
             for(var i = 0; i < length; i++) {
-                out[i] = overlap[i] + (buf[i] * LONG_WINDOWS[windowShapePrev][i]);
+                output[i] = overlap[i] + (buf[i] * LONG_WINDOWS[windowShapePrev][i]);
             }
 
             // window the second half and save as overlap for next frame
@@ -96,7 +96,7 @@ FilterBank.prototype.process = function(info, input, output, channel) {
             
             // add second half output of previous frame to windowed output of current frame
             for(i = 0; i<length; i++) {
-                out[i] = overlap[i] + (buf[i] * LONG_WINDOWS[windowShapePrev][i]);
+                output[i] = overlap[i] + (buf[i] * LONG_WINDOWS[windowShapePrev][i]);
             }
 
             //window the second half and save as overlap for next frame
@@ -105,7 +105,7 @@ FilterBank.prototype.process = function(info, input, output, channel) {
             }
             
             for(i = 0; i < shortLen; i++) {
-                overlap[mid+i] = buf[length + mid + i] * SHORT_WINDOWS[windowShape][shortLen - i - 1];
+                overlap[mid + i] = buf[length + mid + i] * SHORT_WINDOWS[windowShape][shortLen - i - 1];
             }
             
             for(i = 0; i < mid; i++) {
