@@ -88,7 +88,6 @@ AACDecoder = Decoder.extend(function() {
           FIL_ELEMENT = 6,
           END_ELEMENT = 7;
     
-    // line 2139    
     this.prototype.readChunk = function() {
         var stream = this.bitstream;
         
@@ -112,7 +111,7 @@ AACDecoder = Decoder.extend(function() {
                 case SCE_ELEMENT:
                 case LFE_ELEMENT:
                     console.log('sce or lfe')
-                    //this.decodeICS(false);
+                    
                     var ics = new ICStream(frameLength);
                     ics.id = id;
                     elements.push(ics);
@@ -121,6 +120,7 @@ AACDecoder = Decoder.extend(function() {
                     
                 case CPE_ELEMENT:
                     console.log('cpe')
+                    
                     var cpe = new CPEElement(frameLength);
                     cpe.id = id;
                     elements.push(cpe);
@@ -129,13 +129,26 @@ AACDecoder = Decoder.extend(function() {
                     
                 case CCE_ELEMENT:
                     console.log('cce')
+                    
                     var cce = new CCEElement(frameLength);
                     this.cces.push(cce);
                     cce.decode(stream, config);
                     break;
                     
                 case DSE_ELEMENT:
-                    console.log('dse')
+                    console.log('dse');
+                    
+                    var align = stream.readOne(),
+                        count = stream.readSmall(8);
+                        
+                    if (count === 255)
+                        count += stream.readSmall(8);
+                        
+                    if (align)
+                        stream.align();
+                        
+                    // skip for now...
+                    stream.advance(count * 8);
                     break;
                     
                 case PCE_ELEMENT:
@@ -165,11 +178,16 @@ AACDecoder = Decoder.extend(function() {
         var channels = this.config.chanConfig;
         
         // if (channels === 1 && psPresent)
-        // sbrPresent?
+        // TODO: sbrPresent (2)
         var mult = 1;
         
         var len = mult * this.config.frameLength;
-        var data = [];
+        var data = this.data = [];
+        
+        // Initialize channels
+        for (var i = 0; i < channels; i++) {
+            data[i] = new Float32Array(len);
+        }
         
         var channel = 0;
         for (var i = 0; i < elements.length && channel < channels; i++) {
@@ -178,11 +196,18 @@ AACDecoder = Decoder.extend(function() {
             if (e instanceof ICStream) { // SCE or LFE element
                 channel += this.processSingle(e, channel);
             } else if (e instanceof CPEElement) {
-                channel += this.processPair(e, channel);
+                this.processPair(e, channel);
+                channel += 2;
+            } else if (e instanceof CCEElement) {
+                channel++;
             } else {
                 throw new Error("Unknown element found.")
             }
         }
+    }
+    
+    this.prototype.processSingle = function(elemtn, channel) {
+        console.log('processSingle')
     }
     
     this.prototype.processPair = function(element, channel) {
@@ -217,11 +242,12 @@ AACDecoder = Decoder.extend(function() {
         this.applyChannelCoupling(element, CCEElement.AFTER_TNS, l_data, r_data);
         
         // filterbank
+        console.log('yo, filterbank')
         
         if (profile === AOT_AAC_LTP)
             throw new Error("LTP prediction unimplemented");
         
-        this.applyChannelCoupling(element, CCEElement.AFTER_IMDCT, data[channel], data[channel + 1]);
+        this.applyChannelCoupling(element, CCEElement.AFTER_IMDCT, this.data[channel], this.data[channel + 1]);
         
         if (left.gainPresent)
             throw new Error("Gain control not implemented");
@@ -249,7 +275,7 @@ AACDecoder = Decoder.extend(function() {
             for (var i = 0; i < maxSFB;) {
                 var end = sectEnd[idx];
                 
-                if (bandTypes[idx] >= INTENSITY_BT2) {
+                if (bandTypes[idx] === INTENSITY_BT || bandTypes[idx] === INTENSITY_BT2) {
                     for (; i < end; i++, idx++) {
                         var c = bandTypes[idx] === INTENSITY_BT ? 1 : -1;
                         if (element.maskPresent)
