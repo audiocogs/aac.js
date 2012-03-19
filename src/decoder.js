@@ -1,6 +1,7 @@
 //import "ics.js"
 //import "cpe.js"
 //import "cce.js"
+//import "filter_bank.js"
 
 AACDecoder = Decoder.extend(function() {
     Decoder.register('mp4a', this)
@@ -76,6 +77,7 @@ AACDecoder = Decoder.extend(function() {
                 return;
         }
         
+        this.filter_bank = new FilterBank(false, this.config.chanConfig);
         console.log(this.config);
     }
     
@@ -243,6 +245,8 @@ AACDecoder = Decoder.extend(function() {
         
         // filterbank
         console.log('yo, filterbank')
+        this.filter_bank.process(l_info, l_data, this.data[channel], channel);
+        this.filter_bank.process(r_info, r_data, this.data[channel + 1], channel + 1)
         
         if (profile === AOT_AAC_LTP)
             throw new Error("LTP prediction unimplemented");
