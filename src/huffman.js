@@ -1411,7 +1411,7 @@ var Huffman = {
             var j = table[++off][0] - len;
             len = table[off][0];
             cw <<= j;
-            cw |= stream.read(j);
+            cw |= stream.readSmall(j); // TODO: find out why stream.read(j) returns weird values here
         }
         
         return off;
