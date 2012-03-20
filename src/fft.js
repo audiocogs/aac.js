@@ -47,7 +47,6 @@ function generateFFTTableLong(len) {
 function FFT(length) {
     this.length = length;
     
-    console.log('fft', length)
     switch (length) {
         case 64:
             roots = generateFFTTableShort(64);

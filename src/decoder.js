@@ -105,7 +105,8 @@ AACDecoder = Decoder.extend(function() {
             config = this.config,
             frameLength = config.frameLength,
             elementType = null;
-            
+        
+        // Table 4.3    
         while ((elementType = stream.readSmall(3)) !== END_ELEMENT) {
             var id = stream.readSmall(4);
             
@@ -175,6 +176,7 @@ AACDecoder = Decoder.extend(function() {
         console.log(elements);
         this.process(elements);
         
+        stream.align();
         this.emit('data', this.data);
     }
     

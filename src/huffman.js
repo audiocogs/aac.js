@@ -1429,7 +1429,7 @@ var Huffman = {
         while (stream.readOne())
             i++;
             
-        var j = stream.readOne() | (1 << i);
+        var j = stream.read(i) | (1 << i);
         return s < 0 ? -j : j;
     },
     
@@ -1440,7 +1440,7 @@ var Huffman = {
     
     decodeSpectralData: function(stream, cb, data, off) {
         var HCB = CODEBOOKS[cb - 1],
-            offset = findOffset(stream, HCB);
+            offset = this.findOffset(stream, HCB);
             
         data[off] = HCB[offset][2];
         data[off + 1] = HCB[offset][3];
@@ -1450,6 +1450,7 @@ var Huffman = {
             data[off + 3] = HCB[offset][5];
         }
         
+        // sign and escape
         if (cb < 11) {
             if (UNSIGNED[cb - 1])
                 this.signValues(stream, data, off, cb < 5 ? QUAD_LEN : PAIR_LEN);

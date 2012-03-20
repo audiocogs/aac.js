@@ -72,7 +72,7 @@ ICStream.prototype = {
                     bandType = stream.readSmall(4);
                     
                 if (bandType === 12)
-                    throw new Error("Invalid band type");
+                    throw new Error("Invalid band type: 12");
                     
                 var incr;
                 while ((incr = stream.read(bits)) === escape)
@@ -122,7 +122,7 @@ ICStream.prototype = {
                     case NOISE_BT:
                         for(; i < runEnd; i++) {
                             if (noiseFlag) {
-                                offset[1] += stream.readSmall(9) - 256;
+                                offset[1] += stream.read(9) - 256;
                                 noiseFlag = false;
                             } else {
                                 offset[1] += Huffman.decodeScaleFactor(stream) - SF_DELTA;
@@ -192,7 +192,7 @@ ICStream.prototype = {
                     off = groupOff + offsets[sfb],
                     width = offsets[sfb + 1] - offsets[sfb];
                     
-                if (hcb === ZERO_BT || hcb >= INTENSITY_BT2) {
+                if (hcb === ZERO_BT || hcb === INTENSITY_BT || hcb === INTENSITY_BT2) {
                     for (var group = 0; group < groupLen; group++, off += 128) {
                         for (var i = off; i < off + width; i++) {
                             data[i] = 0;
@@ -270,7 +270,7 @@ ICSInfo.prototype = {
             this.predictorPresent = false;
         } else {
             this.maxSFB = stream.readSmall(6);
-            this.windowCount = 6;
+            this.windowCount = 1;
             this.swbOffsets = SWB_OFFSET_1024[config.sampleIndex];
             this.swbCount = SWB_LONG_WINDOW_COUNT[config.sampleIndex];
             this.predictorPresent = stream.readOne();

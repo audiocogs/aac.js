@@ -7,6 +7,10 @@ const MASK_TYPE_ALL_0 = 0,
       MASK_TYPE_ALL_1 = 2,
       MASK_TYPE_RESERVED = 3;
 
+/*
+ * CPEElement - represents a channel pair element
+ * Table 4.5
+ */
 function CPEElement(frameLength) {
     this.ms_used = [];
     this.left = new ICStream(frameLength);
@@ -18,8 +22,8 @@ CPEElement.prototype.decode = function(stream, config) {
         right = this.right,
         ms_used = this.ms_used;
     
-    if (this.commonWindow = stream.readOne()) {
-        left.info.decode(stream, config, true);
+    if (this.commonWindow = !!stream.readOne()) {
+        left.info.decode(stream, config, this.commonWindow);
         right.info = left.info;
         
         var mask = stream.readSmall(2);
@@ -29,7 +33,7 @@ CPEElement.prototype.decode = function(stream, config) {
             case MASK_TYPE_USED:
                 var len = left.info.groupCount * left.info.maxSFB;
                 for (var i = 0; i < len; i++) {
-                    ms_used[i] = stream.readOne();
+                    ms_used[i] = !!stream.readOne();
                 }
                 break;
             
@@ -44,6 +48,9 @@ CPEElement.prototype.decode = function(stream, config) {
             default:
                 throw new Error("Reserved ms mask type: " + mask);
         }
+    } else {
+        for (var i = 0; i < MAX_MS_MASK; i++)
+            ms_used[i] = false;
     }
     
     left.decode(stream, config, this.commonWindow);
