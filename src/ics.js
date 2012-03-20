@@ -97,30 +97,32 @@ ICStream.prototype = {
             offset = new Int32Array([this.globalGain, this.globalGain - 90, 0]), // spectrum, noise, intensity
             idx = 0,
             noiseFlag = true,
-            scaleFactors = this.scaleFactors;
-            
+            scaleFactors = this.scaleFactors,
+            sectEnd = this.sectEnd,
+            bandTypes = this.bandTypes;
+                        
         for (var g = 0; g < groupCount; g++) {
             for (var i = 0; i < maxSFB;) {
-                var runEnd = this.sectEnd[idx];
+                var runEnd = sectEnd[idx];
                 
-                switch (this.bandTypes[idx]) {
+                switch (bandTypes[idx]) {
                     case ZERO_BT:
-                        for (; i < runEnd; i++) {
-                            scaleFactors[idx++] = 0;
+                        for (; i < runEnd; i++, idx++) {
+                            scaleFactors[idx] = 0;
                         }
                         break;
                         
                     case INTENSITY_BT:
                     case INTENSITY_BT2:
-                        for(; i < runEnd; i++) {
+                        for(; i < runEnd; i++, idx++) {
                             offset[2] += Huffman.decodeScaleFactor(stream) - SF_DELTA;
                             var tmp = Math.min(Math.max(offset[2], -155), 100);
-                            scaleFactors[idx++] = SCALEFACTOR_TABLE[-tmp + SF_OFFSET];
+                            scaleFactors[idx] = SCALEFACTOR_TABLE[-tmp + SF_OFFSET];
                         }
                         break;
                         
                     case NOISE_BT:
-                        for(; i < runEnd; i++) {
+                        for(; i < runEnd; i++, idx++) {
                             if (noiseFlag) {
                                 offset[1] += stream.read(9) - 256;
                                 noiseFlag = false;
@@ -128,17 +130,17 @@ ICStream.prototype = {
                                 offset[1] += Huffman.decodeScaleFactor(stream) - SF_DELTA;
                             }
                             var tmp = Math.min(Math.max(offset[1], -100), 155);
-                            scaleFactors[idx++] = -SCALEFACTOR_TABLE[tmp + SF_OFFSET];
+                            scaleFactors[idx] = -SCALEFACTOR_TABLE[tmp + SF_OFFSET];
                         }
                         break;
                         
                     default:
-                        for(; i < runEnd; i++) {
+                        for(; i < runEnd; i++, idx++) {
                             offset[0] += Huffman.decodeScaleFactor(stream) - SF_DELTA;
                             if(offset[0] > 255) 
                                 throw new Error("Scalefactor out of range: " + offset[0]);
                                 
-                            scaleFactors[idx++] = SCALEFACTOR_TABLE[offset[0] - 100 + SF_OFFSET];
+                            scaleFactors[idx] = SCALEFACTOR_TABLE[offset[0] - 100 + SF_OFFSET];
                         }
                         break;
                 }
@@ -273,7 +275,7 @@ ICSInfo.prototype = {
             this.windowCount = 1;
             this.swbOffsets = SWB_OFFSET_1024[config.sampleIndex];
             this.swbCount = SWB_LONG_WINDOW_COUNT[config.sampleIndex];
-            this.predictorPresent = stream.readOne();
+            this.predictorPresent = !!stream.readOne();
             
             if (this.predictorPresent)
                 this.decodePrediction(stream, config, commonWindow);
@@ -293,5 +295,18 @@ ICSInfo.prototype = {
             default:
                 throw new Error('Unsupported profile for prediction ' + config.profile);
         }
+    },
+    
+    set: function(info) {
+        this.windowSequence = info.windowSequence;
+        this.windowShape[0] = this.windowShape[1];
+        this.windowShape[1] = info.windowShape[1];
+        this.maxSFB = info.maxSFB;
+        this.predictorPresent = info.predictorPresent;
+        this.windowCount = info.windowCount;
+        this.groupCount = info.groupCount;
+        this.groupLength.set(info.groupLength);
+        this.swbCount = info.swbCount;
+        this.swbOffsets = new Uint16Array(info.swbOffsets);
     }
 }

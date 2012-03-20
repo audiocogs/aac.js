@@ -21,11 +21,11 @@ CPEElement.prototype.decode = function(stream, config) {
     var left = this.left,
         right = this.right,
         ms_used = this.ms_used;
-    
-    if (this.commonWindow = !!stream.readOne()) {
-        left.info.decode(stream, config, this.commonWindow);
-        right.info = left.info;
         
+    if (this.commonWindow = !!stream.readOne()) {
+        left.info.decode(stream, config, true);
+        right.info.set(left.info)
+
         var mask = stream.readSmall(2);
         this.maskPresent = !!mask;
         
