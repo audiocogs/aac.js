@@ -1429,7 +1429,7 @@ var Huffman = {
         while (stream.readOne())
             i++;
             
-        var j = stream.read(i) | (1 << i);
+        var j = stream.readSmall(i) | (1 << i);
         return s < 0 ? -j : j;
     },
     
