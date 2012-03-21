@@ -1419,7 +1419,7 @@ var Huffman = {
     
     signValues: function(stream, data, off, len) {
         for (var i = off; i < off + len; i++) {
-            if (data[i] !== 0 && stream.readOne())
+            if (data[i] && stream.readOne())
                 data[i] = -data[i];
         }
     },
