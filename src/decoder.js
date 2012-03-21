@@ -164,8 +164,8 @@ AACDecoder = Decoder.extend(function() {
                     if (id === 15)
                         id += stream.read(8) - 1;
                         
-                    // decode_extension_payload
-                    
+                    // skip for now...
+                    stream.advance(count * 8);
                     break;
                     
                 default:
@@ -173,7 +173,7 @@ AACDecoder = Decoder.extend(function() {
             }
         }
         
-        console.log(elements);
+        // console.log(elements);
         this.process(elements);
         
         stream.align();
@@ -225,8 +225,9 @@ AACDecoder = Decoder.extend(function() {
             l_data = left.data,
             r_data = right.data;
             
+        // Mid-side stereo
         if (element.commonWindow && element.maskPresent)
-            throw new Error("MS unimplemented");
+            this.processMS(element, l_data, r_data);
             
         if (profile === AOT_AAC_MAIN)
             throw new Error("Main prediction unimplemented");
@@ -240,15 +241,14 @@ AACDecoder = Decoder.extend(function() {
         this.applyChannelCoupling(element, CCEElement.BEFORE_TNS, l_data, r_data);
         
         if (left.tnsPresent)
-            throw new Error("TNS processing unimplemented");
+            left.tns.process(left, l_data, false);
             
         if (right.tnsPresent)
-            throw new Error("TNS processing unimplemented");
+            right.tns.process(right, r_data, false);
         
         this.applyChannelCoupling(element, CCEElement.AFTER_TNS, l_data, r_data);
         
         // filterbank
-        console.log('yo, filterbank')
         this.filter_bank.process(l_info, l_data, this.data[channel], channel);
         this.filter_bank.process(r_info, r_data, this.data[channel + 1], channel + 1)
         
@@ -305,6 +305,34 @@ AACDecoder = Decoder.extend(function() {
                 }
             }
             
+            groupOff += info.groupLength[g] * 128;
+        }
+    }
+    
+    // Mid-side stereo
+    this.prototype.processMS = function(element, left, right) {
+        var ics = element.left,
+            info = ics.info,
+            offsets = info.swbOffsets,
+            windowGroups = info.groupCount,
+            maxSFB = info.maxSFB,
+            sfbCBl = ics.bandTypes,
+            sfbCBr = element.right.bandTypes;
+            
+        var groupOff = 0, idx = 0;
+        for (var g = 0; g < windowGroups; g++) {
+            for (var i = 0; i < maxSFB; i++, idx++) {
+                if (element.ms_used[idx] && sfbCBl[idx] < NOISE_BT && sfbCBr[idx] < NOISE_BT) {
+                    for (var w = 0; w < info.groupLength[g]; w++) {
+                        var off = groupOff + w * 128 + offsets[i];
+                        for (var j = 0; j < offsets[i + 1] - offsets[i]; j++) {
+                            var t = left[off + j];
+                            left[off + j] += right[off + j];
+                            right[off + j] = t;
+                        }
+                    }
+                }
+            }
             groupOff += info.groupLength[g] * 128;
         }
     }

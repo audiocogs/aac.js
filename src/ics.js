@@ -1,5 +1,6 @@
 //import "tables.js"
 //import "huffman.js"
+//import "tns.js"
 
 const MAX_SECTIONS = 120,
       MAX_WINDOW_GROUP_COUNT = 8;
@@ -42,11 +43,12 @@ ICStream.prototype = {
             if (this.info.windowSequence === EIGHT_SHORT_SEQUENCE)
                 throw new Error("Pulse tool not allowed in eight short sequence.");
                 
-            this.decodePulseData();
+            this.decodePulseData(stream);
         }
         
         if (this.tnsPresent = stream.readOne()) {
-            throw new Error("TODO: decode_tns")
+            this.tns = new TNS();
+            this.tns.decode(stream, this.info);
         }
         
         if (this.gainPresent = stream.readOne()) {
@@ -75,7 +77,7 @@ ICStream.prototype = {
                     throw new Error("Invalid band type: 12");
                     
                 var incr;
-                while ((incr = stream.read(bits)) === escape)
+                while ((incr = stream.readSmall(bits)) === escape)
                     end += incr;
                     
                 end += incr;
@@ -225,7 +227,7 @@ ICStream.prototype = {
                             // inverse quantization & scaling
                             for (var j = 0; j < num; j++) {
                                 data[off + k + j] = (buf[j] > 0) ? IQ_TABLE[buf[j]] : -IQ_TABLE[-buf[j]];
-                                data[off + k + j] *= scaleFactors[idx];
+                                data[off + k + j] *= this.scaleFactors[idx];
                             }
                         }
                     }
