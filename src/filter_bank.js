@@ -20,7 +20,7 @@ function generateKBDWindow(alpha, len) {
             bessel = 1;
             
         for (var j = 50; j > 0; j--) {
-            bessel *= tmp / (j * j) + 1;
+            bessel = bessel * tmp / (j * j) + 1;
         }
         
         sum += bessel;
