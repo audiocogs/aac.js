@@ -113,7 +113,7 @@ AACDecoder = Decoder.extend(function() {
             switch (elementType) {
                 case SCE_ELEMENT:
                 case LFE_ELEMENT:
-                    console.log('sce or lfe')
+                    // console.log('sce or lfe')
                     
                     var ics = new ICStream(frameLength);
                     ics.id = id;
@@ -173,9 +173,8 @@ AACDecoder = Decoder.extend(function() {
             }
         }
         
-        this.process(elements);
-        
         stream.align();
+        this.process(elements);
         
         // Interleave channels
         var data = this.data,
@@ -226,8 +225,39 @@ AACDecoder = Decoder.extend(function() {
         }
     }
     
-    this.prototype.processSingle = function(elemtn, channel) {
-        console.log('processSingle')
+    this.prototype.processSingle = function(element, channel) {
+        var profile = this.config.profile,
+            info = element.info,
+            data = element.data;
+            
+        if (profile === AOT_AAC_MAIN)
+            throw new Error("Main prediction unimplemented");
+            
+        if (profile === AOT_AAC_LTP)
+            throw new Error("LTP prediction unimplemented");
+            
+        this.applyChannelCoupling(element, CCEElement.BEFORE_TNS, data, null);
+        
+        if (element.tnsPresent)
+            element.tns.process(element, data, false);
+            
+        this.applyChannelCoupling(element, CCEElement.AFTER_TNS, data, null);
+        
+        // filterbank
+        this.filter_bank.process(info, data, this.data[channel], channel);
+        
+        if (profile === AOT_AAC_LTP)
+            throw new Error("LTP prediction unimplemented");
+        
+        this.applyChannelCoupling(element, CCEElement.AFTER_IMDCT, this.data[channel], null);
+        
+        if (element.gainPresent)
+            throw new Error("Gain control not implemented");
+            
+        if (this.sbrPresent)
+            throw new Error("SBR not implemented");
+            
+        return 1;
     }
     
     this.prototype.processPair = function(element, channel) {

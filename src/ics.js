@@ -126,7 +126,7 @@ ICStream.prototype = {
                     case NOISE_BT:
                         for(; i < runEnd; i++, idx++) {
                             if (noiseFlag) {
-                                offset[1] += stream.read(9) - 256;
+                                offset[1] += stream.readSmall(9) - 256;
                                 noiseFlag = false;
                             } else {
                                 offset[1] += Huffman.decodeScaleFactor(stream) - SF_DELTA;

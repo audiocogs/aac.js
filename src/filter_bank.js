@@ -56,7 +56,7 @@ function FilterBank(smallFrames, channels) {
     this.mdctShort = new MDCT(this.shortLength * 2);
     this.mdctLong  = new MDCT(this.length * 2);
     
-    this.overlaps  = new Array(channels);
+    this.overlaps = new Array(channels);
     for (var i = 0; i < channels; i++) {
         this.overlaps[i] = new Float32Array(this.length);
     }
