@@ -19,7 +19,7 @@ function generateKBDWindow(alpha, len) {
         var tmp = n * (len - n) * alpha2,
             bessel = 1;
             
-        for (var j = 0; j < 50; j++) {
+        for (var j = 50; j > 0; j--) {
             bessel *= tmp / (j * j) + 1;
         }
         
@@ -28,7 +28,7 @@ function generateKBDWindow(alpha, len) {
     }
     
     sum++;
-    for (n = 0; n < len; n++) {
+    for (var n = 0; n < len; n++) {
         out[n] = Math.sqrt(f[n] / sum);
     }
     
@@ -61,7 +61,7 @@ function FilterBank(smallFrames, channels) {
         this.overlaps[i] = new Float32Array(this.length);
     }
     
-    this.buf = new Float32Array(2 * length);
+    this.buf = new Float32Array(2 * this.length);
 }
 
 FilterBank.prototype.process = function(info, input, output, channel) {
@@ -76,8 +76,7 @@ FilterBank.prototype.process = function(info, input, output, channel) {
     
     switch (info.windowSequence) {
         case ONLY_LONG_SEQUENCE:
-            // console.log('ONLY_LONG_SEQUENCE');
-            this.mdctLong.process(input, 0, output, 0);
+            this.mdctLong.process(input, 0, buf, 0);
             
             // add second half output of previous frame to windowed output of current frame
             for(var i = 0; i < length; i++) {
@@ -92,38 +91,39 @@ FilterBank.prototype.process = function(info, input, output, channel) {
             break;
             
         case LONG_START_SEQUENCE:
-            // console.log('LONG_START_SEQUENCE');
-            this.mdctLong.process(input, 0, output, 0);
+            this.mdctLong.process(input, 0, buf, 0);
             
             // add second half output of previous frame to windowed output of current frame
-            for(i = 0; i<length; i++) {
+            for(var i = 0; i < length; i++) {
                 output[i] = overlap[i] + (buf[i] * LONG_WINDOWS[windowShapePrev][i]);
             }
 
-            //window the second half and save as overlap for next frame
-            for(i = 0; i < mid; i++) {
+            // window the second half and save as overlap for next frame
+            for(var i = 0; i < mid; i++) {
                 overlap[i] = buf[length + i];
             }
             
-            for(i = 0; i < shortLen; i++) {
+            for(var i = 0; i < shortLen; i++) {
                 overlap[mid + i] = buf[length + mid + i] * SHORT_WINDOWS[windowShape][shortLen - i - 1];
             }
             
-            for(i = 0; i < mid; i++) {
+            for(var i = 0; i < mid; i++) {
                 overlap[mid + shortLen + i] = 0;
             }
             
             break;
             
         case EIGHT_SHORT_SEQUENCE:
-            for (var i = 0; i < 8; i++)
+            for (var i = 0; i < 8; i++) {
 				this.mdctShort.process(input, i * shortLen, buf, 2 * i * shortLen);
+			}
 			
 			// add second half output of previous frame to windowed output of current frame
-			for(var i = 0; i < mid; i++)
+			for (var i = 0; i < mid; i++) {
 				output[i] = overlap[i];
+			}
 			
-			for(var i = 0; i < shortLen; i++) {
+			for (var i = 0; i < shortLen; i++) {
 				output[mid + i] = overlap[mid + i] + buf[i] * SHORT_WINDOWS[windowShapePrev][i];
 				output[mid + 1 * shortLen + i] = overlap[mid + shortLen * 1 + i] + (buf[shortLen * 1 + i] * SHORT_WINDOWS[windowShape][shortLen - 1 - i]) + (buf[shortLen * 2 + i]  * SHORT_WINDOWS[windowShape][i]);
 				output[mid + 2 * shortLen + i] = overlap[mid+shortLen * 2 + i] + (buf[shortLen * 3 + i] * SHORT_WINDOWS[windowShape][shortLen - 1 - i]) + (buf[shortLen * 4 + i] * SHORT_WINDOWS[windowShape][i]);
@@ -134,7 +134,7 @@ FilterBank.prototype.process = function(info, input, output, channel) {
 			}
 			
 			// window the second half and save as overlap for next frame
-			for(var i = 0; i < shortLen; i++) {
+			for (var i = 0; i < shortLen; i++) {
 				if(i >= trans) 
 				    overlap[mid + 4 * shortLen + i - length] = (buf[shortLen * 7 + i] * SHORT_WINDOWS[windowShape][shortLen - 1 - i]) + (buf[shortLen * 8 + i] * SHORT_WINDOWS[windowShape][i]);
 				    
@@ -144,8 +144,9 @@ FilterBank.prototype.process = function(info, input, output, channel) {
 				overlap[mid + 8 * shortLen + i - length] = (buf[shortLen * 15 + i] * SHORT_WINDOWS[windowShape][shortLen - 1 - i]);
 			}
 			
-			for(var i = 0; i<mid; i++)
+			for (var i = 0; i < mid; i++) {
 				overlap[mid + shortLen + i] = 0;
+			}
 			
             break;
             
