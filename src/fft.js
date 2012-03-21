@@ -14,7 +14,7 @@ function generateFFTTableShort(len) {
     
     for (var i = 1; i < len; i++) {
         f[i][0] = f[i - 1][0] * cosT + lastImag * sinT;
-        lastImag = lastImag * cosT - f[i-1][0] * sinT;
+        lastImag *= cosT - f[i - 1][0] * sinT;
         f[i][1] = -lastImag;
     }
     

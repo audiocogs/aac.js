@@ -48,7 +48,7 @@ MDCT.prototype.process = function(input, inOffset, output, outOffset) {
         fft = this.fft;
     
     // pre-IFFT complex multiplication
-    for(var k = 0; k < this.N4; k++) {
+    for (var k = 0; k < this.N4; k++) {
         buf[k][1] = (input[inOffset + 2 * k] * sincos[k][0]) + (input[inOffset + N2 - 1 - 2 * k] * sincos[k][1]);
         buf[k][0] = (input[inOffset + N2 - 1 - 2 * k] * sincos[k][0]) - (input[inOffset + 2 * k] * sincos[k][1]);
     }
@@ -57,7 +57,7 @@ MDCT.prototype.process = function(input, inOffset, output, outOffset) {
     fft.process(buf, false);
     
     // post-IFFT complex multiplication
-    for(var k = 0; k < N4; k++) {
+    for (var k = 0; k < N4; k++) {
         tmp[0] = buf[k][0];
         tmp[1] = buf[k][1];
         buf[k][1] = (tmp[1] * sincos[k][0]) + (tmp[0] * sincos[k][1]);
@@ -65,7 +65,7 @@ MDCT.prototype.process = function(input, inOffset, output, outOffset) {
     }
     
     // reordering
-    for(k = 0; k<N8; k += 2) {
+    for (var k = 0; k < N8; k += 2) {
         output[outOffset + 2 * k] = buf[N8 + k][1];
         output[outOffset + 2 + 2 * k] = buf[N8 + 1 + k][1];
 
