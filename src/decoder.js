@@ -122,7 +122,7 @@ AACDecoder = Decoder.extend(function() {
                     break;
                     
                 case CPE_ELEMENT:
-                    console.log('cpe')
+                    // console.log('cpe')
                     
                     var cpe = new CPEElement(frameLength);
                     cpe.id = id;
@@ -173,11 +173,25 @@ AACDecoder = Decoder.extend(function() {
             }
         }
         
-        // console.log(elements);
         this.process(elements);
         
         stream.align();
-        this.emit('data', this.data);
+        
+        // Interleave channels
+        var data = this.data,
+            channels = data.length,
+            len = this.config.frameLength,
+            output = new Int16Array(len * channels),
+            j = 0;
+            
+        for (var k = 0; k < len; k++) {
+            for (var i = 0; i < channels; i++) {
+                output[j++] = data[i][k];
+            }
+        }
+        
+        // console.log(output)
+        this.emit('data', output);
     }
     
     this.prototype.process = function(elements) {
@@ -250,7 +264,7 @@ AACDecoder = Decoder.extend(function() {
         
         // filterbank
         this.filter_bank.process(l_info, l_data, this.data[channel], channel);
-        this.filter_bank.process(r_info, r_data, this.data[channel + 1], channel + 1)
+        this.filter_bank.process(r_info, r_data, this.data[channel + 1], channel + 1);
         
         if (profile === AOT_AAC_LTP)
             throw new Error("LTP prediction unimplemented");
@@ -326,7 +340,7 @@ AACDecoder = Decoder.extend(function() {
                     for (var w = 0; w < info.groupLength[g]; w++) {
                         var off = groupOff + w * 128 + offsets[i];
                         for (var j = 0; j < offsets[i + 1] - offsets[i]; j++) {
-                            var t = left[off + j];
+                            var t = left[off + j] - right[off + j];
                             left[off + j] += right[off + j];
                             right[off + j] = t;
                         }
