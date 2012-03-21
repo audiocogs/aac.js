@@ -73,13 +73,20 @@ function FFT(length) {
     for (var i = 0; i < length; i++) {
         this.rev[i] = new Float32Array(2);
     }
+    
+    this.a = new Float32Array(2);
+    this.b = new Float32Array(2);
+    this.c = new Float32Array(2);
+    this.d = new Float32Array(2);     
+    this.e1 = new Float32Array(2);
+    this.e2 = new Float32Array(2);
 }
 
 FFT.prototype.process = function(input, forward) {
-    var imOffset = (forward ? 2 : 1),
+    var length = this.length,
+        imOffset = (forward ? 2 : 1),
         scale = (forward ? length : 1),
-        rev = this.rev,
-        length = this.length;
+        rev = this.rev;
         
     // bit-reversal
     var ii = 0;
@@ -96,12 +103,12 @@ FFT.prototype.process = function(input, forward) {
         ii += k;
     }
     
-    var a = new Float32Array(2),
-        b = new Float32Array(2),
-        c = new Float32Array(2),
-        d = new Float32Array(2),     
-        e1 = new Float32Array(2),
-        e2 = new Float32Array(2);
+    var a = this.a,
+        b = this.b,
+        c = this.c,
+        d = this.d,
+        e1 = this.e1,
+        e2 = this.e2;
     
     for (var i = 0; i < length; i++) {
         input[i][0] = rev[i][0];
@@ -109,11 +116,11 @@ FFT.prototype.process = function(input, forward) {
     }
     
     // bottom base-4 round
-    for(var i = 0; i<length; i += 4) {
-        a[0] = input[i][0] + input[i+1][0];
-        a[1] = input[i][1] + input[i+1][1];
-        b[0] = input[i + 2][0] + input[i+3][0];
-        b[1] = input[i + 2][1] + input[i+3][1];
+    for (var i = 0; i < length; i += 4) {
+        a[0] = input[i][0] + input[i + 1][0];
+        a[1] = input[i][1] + input[i + 1][1];
+        b[0] = input[i + 2][0] + input[i + 3][0];
+        b[1] = input[i + 2][1] + input[i + 3][1];
         c[0] = input[i][0] - input[i + 1][0];
         c[1] = input[i][1] - input[i + 1][1];
         d[0] = input[i + 2][0] - input[i + 3][0];
