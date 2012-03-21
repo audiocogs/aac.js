@@ -48,7 +48,7 @@ MDCT.prototype.process = function(input, inOffset, output, outOffset) {
         fft = this.fft;
     
     // pre-IFFT complex multiplication
-    for (var k = 0; k < this.N4; k++) {
+    for (var k = 0; k < N4; k++) {
         buf[k][1] = (input[inOffset + 2 * k] * sincos[k][0]) + (input[inOffset + N2 - 1 - 2 * k] * sincos[k][1]);
         buf[k][0] = (input[inOffset + N2 - 1 - 2 * k] * sincos[k][0]) - (input[inOffset + 2 * k] * sincos[k][1]);
     }

@@ -186,7 +186,7 @@ AACDecoder = Decoder.extend(function() {
             
         for (var k = 0; k < len; k++) {
             for (var i = 0; i < channels; i++) {
-                output[j++] = data[i][k];
+                output[j++] = Math.max(Math.min(data[i][k], 32767), -32768);
             }
         }
         
