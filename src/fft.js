@@ -49,19 +49,19 @@ function FFT(length) {
     
     switch (length) {
         case 64:
-            roots = generateFFTTableShort(64);
+            this.roots = generateFFTTableShort(64);
             break;
             
         case 512:
-            roots = generateFFTTableLong(512);
+            this.roots = generateFFTTableLong(512);
             break;
             
         case 60:
-            roots = generateFFTTableShort(60);
+            this.roots = generateFFTTableShort(60);
             break;
             
         case 480:
-            roots = generateFFTTableLong(480);
+            this.roots = generateFFTTableLong(480);
             break;
         
         default:
@@ -86,7 +86,8 @@ FFT.prototype.process = function(input, forward) {
     var length = this.length,
         imOffset = (forward ? 2 : 1),
         scale = (forward ? length : 1),
-        rev = this.rev;
+        rev = this.rev,
+        roots = this.roots;
         
     // bit-reversal
     var ii = 0;
@@ -149,7 +150,7 @@ FFT.prototype.process = function(input, forward) {
     }
     
     // iterations from bottom to top
-    for(var i = 4; i < length; i <<= 1) {
+    for (var i = 4; i < length; i <<= 1) {
         var shift = i << 1,
             m = length / shift;
             
