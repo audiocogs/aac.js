@@ -16,8 +16,12 @@ const TNS_COEF_1_3 = [0.00000000, -0.43388373, 0.64278758, 0.34202015],
               		  0.67369562, 0.52643216, 0.36124167, 0.18374951],
               		  
       TNS_TABLES = [TNS_COEF_0_3, TNS_COEF_0_4, TNS_COEF_1_3, TNS_COEF_1_4];
+      
+const TNS_MAX_BANDS_1024 = [31, 31, 34, 40, 42, 51, 46, 46, 42, 42, 42, 39, 39],
+      TNS_MAX_BANDS_128 = [9, 9, 10, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14];
 
-function TNS() {
+function TNS(config) {
+    this.maxBands = TNS_MAX_BANDS_1024[config.sampleIndex]
     this.nFilt = new Int32Array(8);
     this.length = new Array(8);
     this.direction = new Array(8);
@@ -66,6 +70,71 @@ TNS.prototype.decode = function(stream, info) {
     }
 }
 
-TNS.prototype.process = function() {
-    // TODO: implement
+TNS.prototype.process = function(ics, data, decode) {
+    var mmm = Math.min(this.maxBands, ics.maxSFB),
+        lpc = new Float32Array(TNS_MAX_ORDER),
+        tmp = new Float32Array(TNS_MAX_ORDER),
+        info = ics.info,
+        windowCount = info.windowCount;
+        
+    for (var w = 0; w < windowCount; w++) {
+        var bottom = info.swbCount;
+        
+        for (var filt = 0; filt < this.nFilt[w]; filt++) {
+            var top = bottom,
+                bottom = Math.max(0, tmp - this.length[w][filt]),
+                order = this.order[w][filt];
+                
+            if (order === 0) continue;
+            
+            // calculate lpc coefficients
+            var autoc = this.coef[w][filt];
+            for (var i = 0; i < order; i++) {
+                var r = -autoc[i];
+                lpc[i] = r;
+
+                for (var j = 0, len = (i + 1) >> 1; j < len; j++) {
+                    var f = lpc[j],
+                        b = lpc[i - 1 - j];
+
+                    lpc[j] = f + r * b;
+                    lpc[i - 1 - j] = b + r * f;
+                }
+            }
+            
+            var start = info.swbOffsets[Math.min(bottom, mmm)],
+                end = info.swbOffsets[Math.min(top, mmm)],
+                size,
+                inc = 1;
+                
+            if ((size = end - start) <= 0) continue;
+            
+            if (this.direction[w][filt]) {
+                inc = -1;
+                start = end - 1;
+            }
+            
+            start += w * 128;
+            
+            if (decode) {
+                // ar filter
+                for (var m = 0; m < size; m++, start += inc) {
+                    for (var i = 1; i <= Math.min(m, order); i++) {
+                        data[start] -= data[start - i * inc] * lpc[i - 1];
+                    }
+                }
+            } else {
+                // ma filter
+                for (var m = 0; m < size; m++, start += inc) {
+                    tmp[0] = data[start];
+                    
+                    for (var i = 1; i <= Math.min(m, order); i++)
+                        data[start] += tmp[i] * lpc[i - 1];
+                    
+                    for (var i = order; i > 0; i--)
+                        tmp[i] = tmp[i - 1];
+                }
+            }
+        }
+    }
 }

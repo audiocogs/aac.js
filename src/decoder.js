@@ -32,6 +32,7 @@ AACDecoder = Decoder.extend(function() {
         var data = Stream.fromBuffer(buffer),
             stream = new Bitstream(data);
         
+        this.format.bitsPerChannel = 16; // caf format doesn't encode this
         this.config = {};
         
         this.config.profile = stream.readSmall(5);
@@ -111,36 +112,32 @@ AACDecoder = Decoder.extend(function() {
             var id = stream.readSmall(4);
             
             switch (elementType) {
+                // single channel and low frequency elements
                 case SCE_ELEMENT:
                 case LFE_ELEMENT:
-                    // console.log('sce or lfe')
-                    
                     var ics = new ICStream(frameLength);
                     ics.id = id;
                     elements.push(ics);
                     ics.decode(stream, config, false);
                     break;
                     
+                // channel pair element
                 case CPE_ELEMENT:
-                    // console.log('cpe')
-                    
                     var cpe = new CPEElement(frameLength);
                     cpe.id = id;
                     elements.push(cpe);
                     cpe.decode(stream, config);
                     break;
-                    
+                
+                // channel coupling element
                 case CCE_ELEMENT:
-                    console.log('cce')
-                    
                     var cce = new CCEElement(frameLength);
                     this.cces.push(cce);
                     cce.decode(stream, config);
                     break;
                     
+                // data-stream element
                 case DSE_ELEMENT:
-                    console.log('dse');
-                    
                     var align = stream.readOne(),
                         count = stream.readSmall(8);
                         
@@ -154,18 +151,18 @@ AACDecoder = Decoder.extend(function() {
                     stream.advance(count * 8);
                     break;
                     
+                // program configuration element
                 case PCE_ELEMENT:
-                    console.log('pce')
+                    throw new Error("TODO: PCE_ELEMENT")
                     break;
                     
+                // filler element
                 case FIL_ELEMENT:
-                    console.log('fil')
-                    
                     if (id === 15)
                         id += stream.read(8) - 1;
                         
                     // skip for now...
-                    stream.advance(count * 8);
+                    stream.advance(id * 8);
                     break;
                     
                 default:

@@ -47,7 +47,7 @@ ICStream.prototype = {
         }
         
         if (this.tnsPresent = stream.readOne()) {
-            this.tns = new TNS();
+            this.tns = new TNS(config);
             this.tns.decode(stream, this.info);
         }
         
@@ -285,6 +285,8 @@ ICSInfo.prototype = {
     },
     
     decodePrediction: function(stream, config, commonWindow) {
+        throw new Error('Prediction not implemented.');
+        
         switch (config.profile) {
             case AOT_AAC_MAIN:
                 throw new Error('Prediction not implemented.');
