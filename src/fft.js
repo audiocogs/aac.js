@@ -1,4 +1,42 @@
-function generateFFTTableShort(len) {
+function FFT(length) {
+    this.length = length;
+    
+    switch (length) {
+        case 64:
+            this.roots = FFT.generateFFTTableShort(64);
+            break;
+            
+        case 512:
+            this.roots = FFT.generateFFTTableLong(512);
+            break;
+            
+        case 60:
+            this.roots = FFT.generateFFTTableShort(60);
+            break;
+            
+        case 480:
+            this.roots = FFT.generateFFTTableLong(480);
+            break;
+        
+        default:
+            throw new Error("unexpected FFT length: " + length);
+    }
+    
+    // processing buffers
+    this.rev = new Array(length);
+    for (var i = 0; i < length; i++) {
+        this.rev[i] = new Float32Array(2);
+    }
+    
+    this.a = new Float32Array(2);
+    this.b = new Float32Array(2);
+    this.c = new Float32Array(2);
+    this.d = new Float32Array(2);     
+    this.e1 = new Float32Array(2);
+    this.e2 = new Float32Array(2);
+}
+
+FFT.generateFFTTableShort = function(len) {
     var t = 2 * Math.PI / len,
         cosT = Math.cos(t),
         sinT = Math.sin(t),
@@ -21,7 +59,7 @@ function generateFFTTableShort(len) {
     return f;
 }
 
-function generateFFTTableLong(len) {
+FFT.generateFFTTableLong = function(len) {
     var t = 2 * Math.PI / len,
         cosT = Math.cos(t),
         sinT = Math.sin(t),
@@ -42,44 +80,6 @@ function generateFFTTableLong(len) {
     }
     
     return f;
-}
-
-function FFT(length) {
-    this.length = length;
-    
-    switch (length) {
-        case 64:
-            this.roots = generateFFTTableShort(64);
-            break;
-            
-        case 512:
-            this.roots = generateFFTTableLong(512);
-            break;
-            
-        case 60:
-            this.roots = generateFFTTableShort(60);
-            break;
-            
-        case 480:
-            this.roots = generateFFTTableLong(480);
-            break;
-        
-        default:
-            throw new Error("unexpected FFT length: " + length);
-    }
-    
-    // processing buffers
-    this.rev = new Array(length);
-    for (var i = 0; i < length; i++) {
-        this.rev[i] = new Float32Array(2);
-    }
-    
-    this.a = new Float32Array(2);
-    this.b = new Float32Array(2);
-    this.c = new Float32Array(2);
-    this.d = new Float32Array(2);     
-    this.e1 = new Float32Array(2);
-    this.e2 = new Float32Array(2);
 }
 
 FFT.prototype.process = function(input, forward) {
