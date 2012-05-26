@@ -22,6 +22,7 @@ function MDCT(length) {
             
         case 240:
             this.sincos = MDCT_TABLE_240;
+            break;
             
         default:
             throw new Error("unsupported MDCT length: " + length);
