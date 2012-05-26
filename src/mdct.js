@@ -13,7 +13,7 @@ function MDCT(length) {
             break;
             
         case 256:
-            this.sincos = MDCT_TABLE_128;
+            this.sincos = MDCT_TABLE_256;
             break;
             
         case 1920:
