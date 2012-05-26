@@ -68,34 +68,40 @@ FilterBank.prototype.process = function(info, input, output, channel) {
     var overlap = this.overlaps[channel],
         windowShape = info.windowShape[1],
         windowShapePrev = info.windowShape[0],
+        longWindows = LONG_WINDOWS[windowShape],
+        shortWindows = SHORT_WINDOWS[windowShape],
+        longWindowsPrev = LONG_WINDOWS[windowShapePrev],
+        shortWindowsPrev = SHORT_WINDOWS[windowShapePrev],
         length = this.length,
         shortLen = this.shortLength,
         mid = this.mid,
         trans = this.trans,
-        buf = this.buf;
+        buf = this.buf,
+        mdctLong = this.mdctLong,
+        mdctShort = this.mdctShort;
     
     switch (info.windowSequence) {
         case ONLY_LONG_SEQUENCE:
-            this.mdctLong.process(input, 0, buf, 0);
+            mdctLong.process(input, 0, buf, 0);
             
             // add second half output of previous frame to windowed output of current frame
             for (var i = 0; i < length; i++) {
-                output[i] = overlap[i] + (buf[i] * LONG_WINDOWS[windowShapePrev][i]);
+                output[i] = overlap[i] + (buf[i] * longWindowsPrev[i]);
             }
 
             // window the second half and save as overlap for next frame
             for (var i = 0; i < length; i++) {
-                overlap[i] = buf[length + i] * LONG_WINDOWS[windowShape][length - 1 - i];
+                overlap[i] = buf[length + i] * longWindows[length - 1 - i];
             }
             
             break;
             
         case LONG_START_SEQUENCE:
-            this.mdctLong.process(input, 0, buf, 0);
+            mdctLong.process(input, 0, buf, 0);
             
             // add second half output of previous frame to windowed output of current frame
             for (var i = 0; i < length; i++) {
-                output[i] = overlap[i] + (buf[i] * LONG_WINDOWS[windowShapePrev][i]);
+                output[i] = overlap[i] + (buf[i] * longWindowsPrev[i]);
             }
 
             // window the second half and save as overlap for next frame
@@ -104,7 +110,7 @@ FilterBank.prototype.process = function(info, input, output, channel) {
             }
             
             for (var i = 0; i < shortLen; i++) {
-                overlap[mid + i] = buf[length + mid + i] * SHORT_WINDOWS[windowShape][shortLen - i - 1];
+                overlap[mid + i] = buf[length + mid + i] * shortWindows[shortLen - i - 1];
             }
             
             for (var i = 0; i < mid; i++) {
@@ -115,7 +121,7 @@ FilterBank.prototype.process = function(info, input, output, channel) {
             
         case EIGHT_SHORT_SEQUENCE:
             for (var i = 0; i < 8; i++) {
-				this.mdctShort.process(input, i * shortLen, buf, 2 * i * shortLen);
+				mdctShort.process(input, i * shortLen, buf, 2 * i * shortLen);
 			}
 			
 			// add second half output of previous frame to windowed output of current frame
@@ -124,24 +130,24 @@ FilterBank.prototype.process = function(info, input, output, channel) {
 			}
 			
 			for (var i = 0; i < shortLen; i++) {
-				output[mid + i] = overlap[mid + i] + buf[i] * SHORT_WINDOWS[windowShapePrev][i];
-				output[mid + 1 * shortLen + i] = overlap[mid + shortLen * 1 + i] + (buf[shortLen * 1 + i] * SHORT_WINDOWS[windowShape][shortLen - 1 - i]) + (buf[shortLen * 2 + i]  * SHORT_WINDOWS[windowShape][i]);
-				output[mid + 2 * shortLen + i] = overlap[mid+shortLen * 2 + i] + (buf[shortLen * 3 + i] * SHORT_WINDOWS[windowShape][shortLen - 1 - i]) + (buf[shortLen * 4 + i] * SHORT_WINDOWS[windowShape][i]);
-				output[mid + 3 * shortLen + i] = overlap[mid + shortLen * 3 + i] + (buf[shortLen * 5 + i] * SHORT_WINDOWS[windowShape][shortLen - 1 - i]) + (buf[shortLen * 6 + i] * SHORT_WINDOWS[windowShape][i]);
+				output[mid + i] = overlap[mid + i] + buf[i] * shortWindowsPrev[i];
+				output[mid + 1 * shortLen + i] = overlap[mid + shortLen * 1 + i] + (buf[shortLen * 1 + i] * shortWindows[shortLen - 1 - i]) + (buf[shortLen * 2 + i]  * shortWindows[i]);
+				output[mid + 2 * shortLen + i] = overlap[mid + shortLen * 2 + i] + (buf[shortLen * 3 + i] * shortWindows[shortLen - 1 - i]) + (buf[shortLen * 4 + i] * shortWindows[i]);
+				output[mid + 3 * shortLen + i] = overlap[mid + shortLen * 3 + i] + (buf[shortLen * 5 + i] * shortWindows[shortLen - 1 - i]) + (buf[shortLen * 6 + i] * shortWindows[i]);
 				
 				if (i < trans)
-				    output[mid + 4 * shortLen + i] = overlap[mid + shortLen * 4 + i] + (buf[shortLen * 7 + i] * SHORT_WINDOWS[windowShape][shortLen - 1 - i]) + (buf[shortLen * 8 + i] * SHORT_WINDOWS[windowShape][i]);
+				    output[mid + 4 * shortLen + i] = overlap[mid + shortLen * 4 + i] + (buf[shortLen * 7 + i] * shortWindows[shortLen - 1 - i]) + (buf[shortLen * 8 + i] * shortWindows[i]);
 			}
 			
 			// window the second half and save as overlap for next frame
 			for (var i = 0; i < shortLen; i++) {
 				if(i >= trans) 
-				    overlap[mid + 4 * shortLen + i - length] = (buf[shortLen * 7 + i] * SHORT_WINDOWS[windowShape][shortLen - 1 - i]) + (buf[shortLen * 8 + i] * SHORT_WINDOWS[windowShape][i]);
+				    overlap[mid + 4 * shortLen + i - length] = (buf[shortLen * 7 + i] * shortWindows[shortLen - 1 - i]) + (buf[shortLen * 8 + i] * shortWindows[i]);
 				    
-				overlap[mid + 5 * shortLen + i - length] = (buf[shortLen * 9 + i] * SHORT_WINDOWS[windowShape][shortLen - 1 - i]) + (buf[shortLen * 10 + i] * SHORT_WINDOWS[windowShape][i]);
-				overlap[mid + 6 * shortLen + i - length] = (buf[shortLen * 11 + i] * SHORT_WINDOWS[windowShape][shortLen - 1 - i]) + (buf[shortLen * 12 + i]*SHORT_WINDOWS[windowShape][i]);
-				overlap[mid + 7 * shortLen + i - length] = (buf[shortLen * 13 + i] * SHORT_WINDOWS[windowShape][shortLen - 1 - i]) + (buf[shortLen * 14 + i]*SHORT_WINDOWS[windowShape][i]);
-				overlap[mid + 8 * shortLen + i - length] = (buf[shortLen * 15 + i] * SHORT_WINDOWS[windowShape][shortLen - 1 - i]);
+				overlap[mid + 5 * shortLen + i - length] = (buf[shortLen * 9 + i] * shortWindows[shortLen - 1 - i]) + (buf[shortLen * 10 + i] * shortWindows[i]);
+				overlap[mid + 6 * shortLen + i - length] = (buf[shortLen * 11 + i] * shortWindows[shortLen - 1 - i]) + (buf[shortLen * 12 + i]*shortWindows[i]);
+				overlap[mid + 7 * shortLen + i - length] = (buf[shortLen * 13 + i] * shortWindows[shortLen - 1 - i]) + (buf[shortLen * 14 + i]*shortWindows[i]);
+				overlap[mid + 8 * shortLen + i - length] = (buf[shortLen * 15 + i] * shortWindows[shortLen - 1 - i]);
 			}
 			
 			for (var i = 0; i < mid; i++) {
@@ -151,7 +157,7 @@ FilterBank.prototype.process = function(info, input, output, channel) {
             break;
             
         case LONG_STOP_SEQUENCE:
-            this.mdctLong.process(input, 0, buf, 0);
+            mdctLong.process(input, 0, buf, 0);
             
 			// add second half output of previous frame to windowed output of current frame
 			// construct first half window using padding with 1's and 0's
@@ -159,14 +165,14 @@ FilterBank.prototype.process = function(info, input, output, channel) {
 				output[i] = overlap[i];
 				
 			for (var i = 0; i < shortLen; i++)
-				output[mid + i] = overlap[mid + i] + (buf[mid + i] * SHORT_WINDOWS[windowShapePrev][i]);
+				output[mid + i] = overlap[mid + i] + (buf[mid + i] * shortWindowsPrev[i]);
 
 			for (var i = 0; i < mid; i++)
 				output[mid + shortLen + i] = overlap[mid + shortLen + i] + buf[mid + shortLen + i];
 
 			// window the second half and save as overlap for next frame
 			for (var i = 0; i < length; i++)
-				overlap[i] = buf[length + i] * LONG_WINDOWS[windowShape][length - 1 - i];
+				overlap[i] = buf[length + i] * longWindows[length - 1 - i];
             
             break;
     }
