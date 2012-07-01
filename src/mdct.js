@@ -91,4 +91,4 @@ MDCT.prototype.process = function(input, inOffset, output, outOffset) {
         output[outOffset + N2 + N4 + 1 + 2 * k] = buf[N4 - 1 - k][0];
         output[outOffset + N2 + N4 + 3 + 2 * k] = buf[N4 - 2 - k][0];
     }
-}
+};

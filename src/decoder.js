@@ -1,11 +1,28 @@
+(function() {
+    
 //import "ics.js"
 //import "cpe.js"
 //import "cce.js"
 //import "filter_bank.js"
 
+/*
+ * Mid/side stereo                      x
+ * Perceptual noise substitution        x
+ * Main Prediction
+ * Intensity stereo                     x
+ * Long-term Predication
+ * Channel coupling                     x
+ * Temporal Noise Shaping               x
+ * Filterbank - IMDCT                   x
+ * Gain Control                         
+ * Spectral Band Replication
+ * Parametric Stereo
+ * Error resiliance
+ */
+
 AACDecoder = Decoder.extend(function() {
-    Decoder.register('mp4a', this)
-    Decoder.register('aac ', this)
+    Decoder.register('mp4a', this);
+    Decoder.register('aac ', this);
     
     const SAMPLE_RATES = new Int32Array([
         96000, 88200, 64000, 48000, 44100, 32000,
@@ -13,9 +30,9 @@ AACDecoder = Decoder.extend(function() {
     ]);
     
     // AAC profiles
-    const AOT_AAC_MAIN = 1,
-          AOT_AAC_LC = 2,
-          AOT_AAC_LTP = 4,
+    const AOT_AAC_MAIN = 1, // no
+          AOT_AAC_LC = 2,   // yes
+          AOT_AAC_LTP = 4,  // no
           AOT_ESCAPE = 31;
           
     // Channel configurations
@@ -40,7 +57,17 @@ AACDecoder = Decoder.extend(function() {
             this.config.profile = 32 + stream.readSmall(6);
             
         this.config.sampleIndex = stream.readSmall(4);
-        this.config.sampleRate = (this.config.sampleIndex === 0x0f ? stream.read(24) : SAMPLE_RATES[this.config.sampleIndex]);
+        if (this.config.sampleIndex === 0x0f) {
+            this.config.sampleRate = stream.read(24);
+            for (var i = 0; i < SAMPLE_RATES.length; i++) {
+                if (SAMPLE_RATES[i] === this.config.sampleRate) {
+                    this.config.sampleIndex = i;
+                    break;
+                }
+            }
+        } else {
+            this.config.sampleRate = SAMPLE_RATES[this.config.sampleIndex];
+        }
             
         this.config.chanConfig = stream.readSmall(4);
         
@@ -80,7 +107,11 @@ AACDecoder = Decoder.extend(function() {
         
         this.filter_bank = new FilterBank(false, this.config.chanConfig);
         console.log(this.config);
-    }
+        
+        this.ics = new ICStream(this.config);
+        this.cpe = new CPEElement(this.config);
+        this.cce = new CCEElement(this.config);
+    };
     
     const SCE_ELEMENT = 0,
           CPE_ELEMENT = 1,
@@ -115,7 +146,7 @@ AACDecoder = Decoder.extend(function() {
                 // single channel and low frequency elements
                 case SCE_ELEMENT:
                 case LFE_ELEMENT:
-                    var ics = new ICStream(frameLength);
+                    var ics = this.ics;
                     ics.id = id;
                     elements.push(ics);
                     ics.decode(stream, config, false);
@@ -123,7 +154,7 @@ AACDecoder = Decoder.extend(function() {
                     
                 // channel pair element
                 case CPE_ELEMENT:
-                    var cpe = new CPEElement(frameLength);
+                    var cpe = this.cpe;
                     cpe.id = id;
                     elements.push(cpe);
                     cpe.decode(stream, config);
@@ -131,7 +162,7 @@ AACDecoder = Decoder.extend(function() {
                 
                 // channel coupling element
                 case CCE_ELEMENT:
-                    var cce = new CCEElement(frameLength);
+                    var cce = this.cce;
                     this.cces.push(cce);
                     cce.decode(stream, config);
                     break;
@@ -176,19 +207,17 @@ AACDecoder = Decoder.extend(function() {
         // Interleave channels
         var data = this.data,
             channels = data.length,
-            len = this.config.frameLength,
-            output = new Int16Array(len * channels),
+            output = new Int16Array(frameLength * channels),
             j = 0;
             
-        for (var k = 0; k < len; k++) {
+        for (var k = 0; k < frameLength; k++) {
             for (var i = 0; i < channels; i++) {
                 output[j++] = Math.max(Math.min(data[i][k], 32767), -32768);
             }
         }
         
-        // console.log(output)
         this.emit('data', output);
-    }
+    };
     
     this.prototype.process = function(elements) {
         var channels = this.config.chanConfig;
@@ -220,7 +249,7 @@ AACDecoder = Decoder.extend(function() {
                 throw new Error("Unknown element found.")
             }
         }
-    }
+    };
     
     this.prototype.processSingle = function(element, channel) {
         var profile = this.config.profile,
@@ -255,7 +284,7 @@ AACDecoder = Decoder.extend(function() {
             throw new Error("SBR not implemented");
             
         return 1;
-    }
+    };
     
     this.prototype.processPair = function(element, channel) {
         var profile = this.config.profile,
@@ -306,7 +335,7 @@ AACDecoder = Decoder.extend(function() {
             
         if (this.sbrPresent)
             throw new Error("SBR not implemented");
-    }
+    };
     
     // Intensity stereo
     this.prototype.processIS = function(element, left, right) {
@@ -324,9 +353,9 @@ AACDecoder = Decoder.extend(function() {
             for (var i = 0; i < maxSFB;) {
                 var end = sectEnd[idx];
                 
-                if (bandTypes[idx] === INTENSITY_BT || bandTypes[idx] === INTENSITY_BT2) {
+                if (bandTypes[idx] === ICStream.INTENSITY_BT || bandTypes[idx] === ICStream.INTENSITY_BT2) {
                     for (; i < end; i++, idx++) {
-                        var c = bandTypes[idx] === INTENSITY_BT ? 1 : -1;
+                        var c = bandTypes[idx] === ICStream.INTENSITY_BT ? 1 : -1;
                         if (element.maskPresent)
                             c *= element.ms_used[idx] ? -1 : 1;
                             
@@ -348,7 +377,7 @@ AACDecoder = Decoder.extend(function() {
             
             groupOff += info.groupLength[g] * 128;
         }
-    }
+    };
     
     // Mid-side stereo
     this.prototype.processMS = function(element, left, right) {
@@ -363,7 +392,7 @@ AACDecoder = Decoder.extend(function() {
         var groupOff = 0, idx = 0;
         for (var g = 0; g < windowGroups; g++) {
             for (var i = 0; i < maxSFB; i++, idx++) {
-                if (element.ms_used[idx] && sfbCBl[idx] < NOISE_BT && sfbCBr[idx] < NOISE_BT) {
+                if (element.ms_used[idx] && sfbCBl[idx] < ICStream.NOISE_BT && sfbCBr[idx] < ICStream.NOISE_BT) {
                     for (var w = 0; w < info.groupLength[g]; w++) {
                         var off = groupOff + w * 128 + offsets[i];
                         for (var j = 0; j < offsets[i + 1] - offsets[i]; j++) {
@@ -376,7 +405,7 @@ AACDecoder = Decoder.extend(function() {
             }
             groupOff += info.groupLength[g] * 128;
         }
-    }
+    };
     
     this.prototype.applyChannelCoupling = function(element, couplingPoint, data1, data2) {
         var cces = this.cces,
@@ -405,5 +434,8 @@ AACDecoder = Decoder.extend(function() {
                 }
             }
         }
-    }
-})
+    };
+    
+});
+
+})();
