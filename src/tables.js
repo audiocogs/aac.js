@@ -1,4 +1,24 @@
 /*
+ * AAC.js - Advanced Audio Coding decoder in JavaScript
+ * Created by Devon Govett
+ * Copyright (c) 2012, Official.fm Labs
+ *
+ * AAC.js is free software; you can redistribute it and/or modify it 
+ * under the terms of the GNU Lesser General Public License as 
+ * published by the Free Software Foundation; either version 3 of the 
+ * License, or (at your option) any later version.
+ *
+ * AAC.js is distributed in the hope that it will be useful, but WITHOUT 
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General 
+ * Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library.
+ * If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/********************************************************************************
  * Sample offset into the window indicating the beginning of a scalefactor
  * window band
  *
@@ -10,9 +30,7 @@
  * may contain several scalefactor window bands of corresponding frequency. For
  * all other window_sequences scalefactor bands and scalefactor window bands are
  * identical.
- *
- */
-
+ *******************************************************************************/
 const SWB_OFFSET_1024_96 = new Uint16Array([
       0,   4,   8,  12,  16,  20,  24,  28,
      32,  36,  40,  44,  48,  52,  56,  64,

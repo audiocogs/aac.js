@@ -1,9 +1,30 @@
+/*
+ * AAC.js - Advanced Audio Coding decoder in JavaScript
+ * Created by Devon Govett
+ * Copyright (c) 2012, Official.fm Labs
+ *
+ * AAC.js is free software; you can redistribute it and/or modify it 
+ * under the terms of the GNU Lesser General Public License as 
+ * published by the Free Software Foundation; either version 3 of the 
+ * License, or (at your option) any later version.
+ *
+ * AAC.js is distributed in the hope that it will be useful, but WITHOUT 
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General 
+ * Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library.
+ * If not, see <http://www.gnu.org/licenses/>.
+ */
+
 //import "tables.js"
 //import "huffman.js"
 //import "tns.js"
 
 var ICStream = (function() {
     
+    // Individual Channel Stream
     function ICStream(config) {
         this.info = new ICSInfo();
         this.bandTypes = new Int32Array(MAX_SECTIONS);
@@ -54,7 +75,7 @@ var ICStream = (function() {
             }
             
             if (this.gainPresent = stream.readOne()) {
-                throw new Error("TODO: decode gain control/SSR")
+                throw new Error("TODO: decode gain control/SSR");
             }
             
             this.decodeSpectralData(stream);
@@ -187,6 +208,7 @@ var ICStream = (function() {
                 windowGroups = info.groupCount,
                 offsets = info.swbOffsets,
                 bandTypes = this.bandTypes,
+                scaleFactors = this.scaleFactors,
                 buf = new Int32Array(4);
                 
             var groupOff = 0, idx = 0;
@@ -215,7 +237,7 @@ var ICStream = (function() {
                                 energy += data[off + k] * data[off + k];
                             }
                             
-                            var scale = this.scaleFactors[idx] / Math.sqrt(energy);
+                            var scale = scaleFactors[idx] / Math.sqrt(energy);
                             for (var k = 0; k < width; k++) {
                                 data[off + k] *= scale;
                             }
@@ -229,7 +251,7 @@ var ICStream = (function() {
                                 // inverse quantization & scaling
                                 for (var j = 0; j < num; j++) {
                                     data[off + k + j] = (buf[j] > 0) ? IQ_TABLE[buf[j]] : -IQ_TABLE[-buf[j]];
-                                    data[off + k + j] *= this.scaleFactors[idx];
+                                    data[off + k + j] *= scaleFactors[idx];
                                 }
                             }
                         }
@@ -237,9 +259,15 @@ var ICStream = (function() {
                 }
                 groupOff += groupLen << 7;
             }
+            
+            // add pulse data, if present
+            if (this.pulsePresent) {
+                throw new Error('TODO: add pulse data');
+            }
         }
     }
     
+    // Individual Channel Stream Info
     function ICSInfo() {
         this.windowShape = new Int32Array(2);
         this.windowSequence = ICStream.ONLY_LONG_SEQUENCE;

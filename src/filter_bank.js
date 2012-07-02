@@ -1,3 +1,23 @@
+/*
+ * AAC.js - Advanced Audio Coding decoder in JavaScript
+ * Created by Devon Govett
+ * Copyright (c) 2012, Official.fm Labs
+ *
+ * AAC.js is free software; you can redistribute it and/or modify it 
+ * under the terms of the GNU Lesser General Public License as 
+ * published by the Free Software Foundation; either version 3 of the 
+ * License, or (at your option) any later version.
+ *
+ * AAC.js is distributed in the hope that it will be useful, but WITHOUT 
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General 
+ * Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library.
+ * If not, see <http://www.gnu.org/licenses/>.
+ */
+
 //import "mdct.js"
 
 var FilterBank = (function() {
@@ -163,18 +183,22 @@ var FilterBank = (function() {
   
               // add second half output of previous frame to windowed output of current frame
               // construct first half window using padding with 1's and 0's
-              for (var i = 0; i < mid; i++)
+              for (var i = 0; i < mid; i++) {
                   output[i] = overlap[i];
+              }
   
-              for (var i = 0; i < shortLen; i++)
+              for (var i = 0; i < shortLen; i++) {
                   output[mid + i] = overlap[mid + i] + (buf[mid + i] * shortWindowsPrev[i]);
+              }
   
-              for (var i = 0; i < mid; i++)
+              for (var i = 0; i < mid; i++) {
                   output[mid + shortLen + i] = overlap[mid + shortLen + i] + buf[mid + shortLen + i];
+              }
   
               // window the second half and save as overlap for next frame
-              for (var i = 0; i < length; i++)
+              for (var i = 0; i < length; i++) {
                   overlap[i] = buf[length + i] * longWindows[length - 1 - i];
+              }
   
               break;
       }

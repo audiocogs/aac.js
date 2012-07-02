@@ -1,24 +1,29 @@
+/*
+ * AAC.js - Advanced Audio Coding decoder in JavaScript
+ * Created by Devon Govett
+ * Copyright (c) 2012, Official.fm Labs
+ *
+ * AAC.js is free software; you can redistribute it and/or modify it 
+ * under the terms of the GNU Lesser General Public License as 
+ * published by the Free Software Foundation; either version 3 of the 
+ * License, or (at your option) any later version.
+ *
+ * AAC.js is distributed in the hope that it will be useful, but WITHOUT 
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General 
+ * Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library.
+ * If not, see <http://www.gnu.org/licenses/>.
+ */
+
 (function() {
     
 //import "ics.js"
 //import "cpe.js"
 //import "cce.js"
 //import "filter_bank.js"
-
-/*
- * Mid/side stereo                      x
- * Perceptual noise substitution        x
- * Main Prediction
- * Intensity stereo                     x
- * Long-term Predication
- * Channel coupling                     x
- * Temporal Noise Shaping               x
- * Filterbank - IMDCT                   x
- * Gain Control                         
- * Spectral Band Replication
- * Parametric Stereo
- * Error resiliance
- */
 
 AACDecoder = Decoder.extend(function() {
     Decoder.register('mp4a', this);
@@ -105,9 +110,7 @@ AACDecoder = Decoder.extend(function() {
                 return;
         }
         
-        this.filter_bank = new FilterBank(false, this.config.chanConfig);
-        console.log(this.config);
-        
+        this.filter_bank = new FilterBank(false, this.config.chanConfig);        
         this.ics = new ICStream(this.config);
         this.cpe = new CPEElement(this.config);
         this.cce = new CCEElement(this.config);
@@ -122,6 +125,7 @@ AACDecoder = Decoder.extend(function() {
           FIL_ELEMENT = 6,
           END_ELEMENT = 7;
     
+    // The main decoding function.
     this.prototype.readChunk = function() {
         var stream = this.bitstream;
         
@@ -138,7 +142,6 @@ AACDecoder = Decoder.extend(function() {
             frameLength = config.frameLength,
             elementType = null;
         
-        // Table 4.3    
         while ((elementType = stream.readSmall(3)) !== END_ELEMENT) {
             var id = stream.readSmall(4);
             
