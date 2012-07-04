@@ -43,7 +43,7 @@ var CPEElement = (function() {
             
         if (this.commonWindow = !!stream.readOne()) {
             left.info.decode(stream, config, true);
-            right.info.set(left.info)
+            right.info = left.info;
     
             var mask = stream.readSmall(2);
             this.maskPresent = !!mask;

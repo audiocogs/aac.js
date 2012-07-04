@@ -33,6 +33,7 @@ var ICStream = (function() {
         this.scaleFactors = new Float32Array(MAX_SECTIONS);
         this.randomState = 0x1F2E3D4C;
         this.tns = new TNS(config);
+        this.specBuf = new Int32Array(4);
     }
           
     ICStream.ZERO_BT = 0;         // Scalefactors and spectral data are all zero.
@@ -119,7 +120,7 @@ var ICStream = (function() {
         decodeScaleFactors: function(stream) {
             var groupCount = this.info.groupCount,
                 maxSFB = this.info.maxSFB,
-                offset = new Int32Array([this.globalGain, this.globalGain - 90, 0]), // spectrum, noise, intensity
+                offset = [this.globalGain, this.globalGain - 90, 0], // spectrum, noise, intensity
                 idx = 0,
                 noiseFlag = true,
                 scaleFactors = this.scaleFactors,
@@ -209,7 +210,7 @@ var ICStream = (function() {
                 offsets = info.swbOffsets,
                 bandTypes = this.bandTypes,
                 scaleFactors = this.scaleFactors,
-                buf = new Int32Array(4);
+                buf = this.specBuf;
                 
             var groupOff = 0, idx = 0;
             for (var g = 0; g < windowGroups; g++) {
@@ -329,19 +330,6 @@ var ICStream = (function() {
                 default:
                     throw new Error('Unsupported profile for prediction ' + config.profile);
             }
-        },
-        
-        set: function(info) {
-            this.windowSequence = info.windowSequence;
-            this.windowShape[0] = this.windowShape[1];
-            this.windowShape[1] = info.windowShape[1];
-            this.maxSFB = info.maxSFB;
-            this.predictorPresent = info.predictorPresent;
-            this.windowCount = info.windowCount;
-            this.groupCount = info.groupCount;
-            this.groupLength.set(info.groupLength);
-            this.swbCount = info.swbCount;
-            this.swbOffsets = new Uint16Array(info.swbOffsets);
         }
     };
     
