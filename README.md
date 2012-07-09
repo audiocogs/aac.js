@@ -15,7 +15,7 @@ AAC.js is based on the prior work of many open source projects, including [JAAD]
 
 You can check out a [demo](http://labs.official.fm/codecs/aac/) alongside our other decoders 
 [jsmad](http://github.com/ofmlabs/jsmad) (MP3), [flac.js](https://github.com/ofmlabs/flac.js), and 
-[alac.js](http://github.com/ofmlabs/alac.js).  Currently flac.js works properly in the latest versions of Firefox 
+[alac.js](http://github.com/ofmlabs/alac.js).  Currently AAC.js works properly in the latest versions of Firefox 
 and Chrome, as well as Safari 6 beta.
 
 ## Authors
