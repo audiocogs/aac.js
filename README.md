@@ -38,7 +38,7 @@ Once it is running on port 3030, you can open test.html and select an AAC file f
 
 ## Features
 
-AAC.js supports the AAC Low Complexity Profile, which is the most common profile.  Support for the High Efficiency 
+AAC.js supports the AAC Low Complexity Profile, which is the most common profile.  Support for the Main, High Efficiency 
 (Spectral Band Replication) and High Efficiency v2 (Spectral Band Replication + Parametric Stereo) profiles is planned.
 Other profiles, such as the low delay, and error resilient profiles are not supported, but we'd love pull requests if you feel
 motivated to implement them! :)
