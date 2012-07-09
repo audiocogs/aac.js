@@ -20,7 +20,7 @@ and Chrome, as well as Safari 6 beta.
 
 ## Authors
 
-AAC.js was written by [@devongovett](http://github.com/devongovett) of [ofmlabs](http://ofmlabs.org/).
+AAC.js was written by [@devongovett](http://github.com/devongovett) of [Official.fm Labs](http://ofmlabs.org/).
 
 ## Building
 
