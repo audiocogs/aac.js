@@ -25,9 +25,9 @@
 //import "cce.js"
 //import "filter_bank.js"
 
-AACDecoder = Decoder.extend(function() {
-    Decoder.register('mp4a', this);
-    Decoder.register('aac ', this);
+var AACDecoder = AV.Decoder.extend(function() {
+    AV.Decoder.register('mp4a', this);
+    AV.Decoder.register('aac ', this);
     
     const SAMPLE_RATES = new Int32Array([
         96000, 88200, 64000, 48000, 44100, 32000,
@@ -51,17 +51,17 @@ AACDecoder = Decoder.extend(function() {
           CHANNEL_CONFIG_SEVEN_PLUS_ONE = 8;
     
     this.prototype.setCookie = function(buffer) {
-        var data = Stream.fromBuffer(buffer),
-            stream = new Bitstream(data);
+        var data = AV.Stream.fromBuffer(buffer),
+            stream = new AV.Bitstream(data);
         
         this.format.bitsPerChannel = 16; // caf format doesn't encode this
         this.config = {};
         
-        this.config.profile = stream.readSmall(5);
+        this.config.profile = stream.read(5);
         if (this.config.profile === AOT_ESCAPE)
-            this.config.profile = 32 + stream.readSmall(6);
+            this.config.profile = 32 + stream.read(6);
             
-        this.config.sampleIndex = stream.readSmall(4);
+        this.config.sampleIndex = stream.read(4);
         if (this.config.sampleIndex === 0x0f) {
             this.config.sampleRate = stream.read(24);
             for (var i = 0; i < SAMPLE_RATES.length; i++) {
@@ -74,25 +74,25 @@ AACDecoder = Decoder.extend(function() {
             this.config.sampleRate = SAMPLE_RATES[this.config.sampleIndex];
         }
             
-        this.config.chanConfig = stream.readSmall(4);
+        this.config.chanConfig = stream.read(4);
         
         switch (this.config.profile) {
             case AOT_AAC_MAIN:
             case AOT_AAC_LC:
             case AOT_AAC_LTP:
-                if (stream.readOne()) // frameLengthFlag
+                if (stream.read(1)) // frameLengthFlag
                     return this.emit('error', 'frameLengthFlag not supported');
                     
                 this.config.frameLength = 1024;
                     
-                if (stream.readOne()) // dependsOnCoreCoder
+                if (stream.read(1)) // dependsOnCoreCoder
                     stream.advance(14); // coreCoderDelay
                     
-                if (stream.readOne()) { // extensionFlag
+                if (stream.read(1)) { // extensionFlag
                     if (this.config.profile > 16) { // error resiliant profile
-                        this.config.sectionDataResilience = stream.readOne();
-                        this.config.scalefactorResilience = stream.readOne();
-                        this.config.spectralDataResilience = stream.readOne();
+                        this.config.sectionDataResilience = stream.read(1);
+                        this.config.scalefactorResilience = stream.read(1);
+                        this.config.spectralDataResilience = stream.read(1);
                     }
                     
                     stream.advance(1);
@@ -142,8 +142,8 @@ AACDecoder = Decoder.extend(function() {
             frameLength = config.frameLength,
             elementType = null;
         
-        while ((elementType = stream.readSmall(3)) !== END_ELEMENT) {
-            var id = stream.readSmall(4);
+        while ((elementType = stream.read(3)) !== END_ELEMENT) {
+            var id = stream.read(4);
             
             switch (elementType) {
                 // single channel and low frequency elements
@@ -172,11 +172,11 @@ AACDecoder = Decoder.extend(function() {
                     
                 // data-stream element
                 case DSE_ELEMENT:
-                    var align = stream.readOne(),
-                        count = stream.readSmall(8);
+                    var align = stream.read(1),
+                        count = stream.read(8);
                         
                     if (count === 255)
-                        count += stream.readSmall(8);
+                        count += stream.read(8);
                         
                     if (align)
                         stream.align();

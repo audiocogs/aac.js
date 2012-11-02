@@ -64,18 +64,18 @@ var ICStream = (function() {
             this.decodeBandTypes(stream, config);
             this.decodeScaleFactors(stream);
             
-            if (this.pulsePresent = stream.readOne()) {
+            if (this.pulsePresent = stream.read(1)) {
                 if (this.info.windowSequence === ICStream.EIGHT_SHORT_SEQUENCE)
                     throw new Error("Pulse tool not allowed in eight short sequence.");
                     
                 this.decodePulseData(stream);
             }
             
-            if (this.tnsPresent = stream.readOne()) {
+            if (this.tnsPresent = stream.read(1)) {
                 this.tns.decode(stream, this.info);
             }
             
-            if (this.gainPresent = stream.readOne()) {
+            if (this.gainPresent = stream.read(1)) {
                 throw new Error("TODO: decode gain control/SSR");
             }
             
@@ -95,13 +95,13 @@ var ICStream = (function() {
                 var k = 0;
                 while (k < maxSFB) {
                     var end = k,
-                        bandType = stream.readSmall(4);
+                        bandType = stream.read(4);
                         
                     if (bandType === 12)
                         throw new Error("Invalid band type: 12");
                         
                     var incr;
-                    while ((incr = stream.readSmall(bits)) === escape)
+                    while ((incr = stream.read(bits)) === escape)
                         end += incr;
                         
                     end += incr;
@@ -150,7 +150,7 @@ var ICStream = (function() {
                         case ICStream.NOISE_BT:
                             for(; i < runEnd; i++, idx++) {
                                 if (noiseFlag) {
-                                    offset[1] += stream.readSmall(9) - 256;
+                                    offset[1] += stream.read(9) - 256;
                                     noiseFlag = false;
                                 } else {
                                     offset[1] += Huffman.decodeScaleFactor(stream) - SF_DELTA;
@@ -175,8 +175,8 @@ var ICStream = (function() {
         },
         
         decodePulseData: function(stream) {
-            var pulseCount = stream.readSmall(2) + 1,
-                pulseSWB = stream.readSmall(6);
+            var pulseCount = stream.read(2) + 1,
+                pulseSWB = stream.read(6);
                 
             if (pulseSWB >= this.info.swbCount)
                 throw new Error("Pulse SWB out of range: " + pulseSWB);
@@ -187,18 +187,18 @@ var ICStream = (function() {
                 this.pulseAmp = new Int32Array(pulseCount);
             }
             
-            this.pulseOffset[0] = this.info.swbOffsets[pulseSWB] + stream.readSmall(5);
-            this.pulseAmp[0] = stream.readSmall(4);
+            this.pulseOffset[0] = this.info.swbOffsets[pulseSWB] + stream.read(5);
+            this.pulseAmp[0] = stream.read(4);
             
             if (this.pulseOffset[0] > 1023)
                 throw new Error("Pulse offset out of range: " + this.pulseOffset[0]);
             
             for (var i = 1; i < pulseCount; i++) {
-                this.pulseOffset[i] = stream.readSmall(5) + this.pulseOffset[i - 1];
+                this.pulseOffset[i] = stream.read(5) + this.pulseOffset[i - 1];
                 if (this.pulseOffset[i] > 1023)
                     throw new Error("Pulse offset out of range: " + this.pulseOffset[i]);
                     
-                this.pulseAmp[i] = stream.readSmall(4);
+                this.pulseAmp[i] = stream.read(4);
             }
         },
         
@@ -281,17 +281,17 @@ var ICStream = (function() {
         decode: function(stream, config, commonWindow) {
             stream.advance(1); // reserved
             
-            this.windowSequence = stream.readSmall(2);
+            this.windowSequence = stream.read(2);
             this.windowShape[0] = this.windowShape[1];
-            this.windowShape[1] = stream.readOne();
+            this.windowShape[1] = stream.read(1);
             
             this.groupCount = 1;
             this.groupLength[0] = 1;
             
             if (this.windowSequence === ICStream.EIGHT_SHORT_SEQUENCE) {
-                this.maxSFB = stream.readSmall(4);
+                this.maxSFB = stream.read(4);
                 for (var i = 0; i < 7; i++) {
-                    if (stream.readOne()) {
+                    if (stream.read(1)) {
                         this.groupLength[this.groupCount - 1]++;
                     } else {
                         this.groupCount++;
@@ -304,11 +304,11 @@ var ICStream = (function() {
                 this.swbCount = SWB_SHORT_WINDOW_COUNT[config.sampleIndex];
                 this.predictorPresent = false;
             } else {
-                this.maxSFB = stream.readSmall(6);
+                this.maxSFB = stream.read(6);
                 this.windowCount = 1;
                 this.swbOffsets = SWB_OFFSET_1024[config.sampleIndex];
                 this.swbCount = SWB_LONG_WINDOW_COUNT[config.sampleIndex];
-                this.predictorPresent = !!stream.readOne();
+                this.predictorPresent = !!stream.read(1);
                 
                 if (this.predictorPresent)
                     this.decodePrediction(stream, config, commonWindow);

@@ -46,17 +46,17 @@ var CCEElement = (function() {
                 idSelect = this.idSelect,
                 chSelect = this.chSelect;
     
-            this.couplingPoint = 2 * stream.readOne();
-            this.coupledCount = stream.readSmall(3);
+            this.couplingPoint = 2 * stream.read(1);
+            this.coupledCount = stream.read(3);
     
             var gainCount = 0;
             for (var i = 0; i <= this.coupledCount; i++) {
                 gainCount++;
-                channelPair[i] = stream.readOne();
-                idSelect[i] = stream.readSmall(4);
+                channelPair[i] = stream.read(1);
+                idSelect[i] = stream.read(4);
     
                 if (channelPair[i]) {
-                    chSelect[i] = stream.readSmall(2);
+                    chSelect[i] = stream.read(2);
                     if (chSelect[i] === 3)
                         gainCount++;
     
@@ -65,10 +65,10 @@ var CCEElement = (function() {
                 }
             }
     
-            this.couplingPoint += stream.readOne() || (this.couplingPoint >>> 1);
+            this.couplingPoint += stream.read(1) || (this.couplingPoint >>> 1);
     
-            var sign = stream.readOne(),
-                scale = CCE_SCALE[stream.readSmall(2)];
+            var sign = stream.read(1),
+                scale = CCE_SCALE[stream.read(2)];
     
             this.ics.decode(stream, config, false);
     
@@ -83,7 +83,7 @@ var CCEElement = (function() {
                     gainCache = 1;
     
                 if (i > 0) {
-                    cge = this.couplingPoint === CCEElement.AFTER_IMDCT ? 1 : stream.readOne();
+                    cge = this.couplingPoint === CCEElement.AFTER_IMDCT ? 1 : stream.read(1);
                     gain = cge ? Huffman.decodeScaleFactor(stream) - 60 : 0;
                     gainCache = Math.pow(scale, -gain);
                 }

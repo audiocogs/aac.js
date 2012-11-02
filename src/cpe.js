@@ -41,18 +41,18 @@ var CPEElement = (function() {
             right = this.right,
             ms_used = this.ms_used;
             
-        if (this.commonWindow = !!stream.readOne()) {
+        if (this.commonWindow = !!stream.read(1)) {
             left.info.decode(stream, config, true);
             right.info = left.info;
     
-            var mask = stream.readSmall(2);
+            var mask = stream.read(2);
             this.maskPresent = !!mask;
             
             switch (mask) {
                 case MASK_TYPE_USED:
                     var len = left.info.groupCount * left.info.maxSFB;
                     for (var i = 0; i < len; i++) {
-                        ms_used[i] = !!stream.readOne();
+                        ms_used[i] = !!stream.read(1);
                     }
                     break;
                 

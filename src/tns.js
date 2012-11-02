@@ -72,8 +72,8 @@ var TNS = (function() {
             bits = info.windowSequence === ICStream.EIGHT_SHORT_SEQUENCE ? SHORT_BITS : LONG_BITS;
         
         for (var w = 0; w < windowCount; w++) {
-            if (this.nFilt[w] = stream.readSmall(bits[0])) {
-                var coefRes = stream.readOne(),
+            if (this.nFilt[w] = stream.read(bits[0])) {
+                var coefRes = stream.read(1),
                     nFilt_w = this.nFilt[w],
                     length_w = this.length[w],
                     order_w = this.order[w],
@@ -81,14 +81,14 @@ var TNS = (function() {
                     coef_w = this.coef[w];
                 
                 for (var filt = 0; filt < nFilt_w; filt++) {
-                    length_w[filt] = stream.readSmall(bits[1]);
+                    length_w[filt] = stream.read(bits[1]);
                     
-                    if ((order_w[filt] = stream.readSmall(bits[2])) > 20)
+                    if ((order_w[filt] = stream.read(bits[2])) > 20)
                         throw new Error("TNS filter out of range: " + order_w[filt]);
                     
                     if (order_w[filt]) {
-                        direction_w[filt] = !!stream.readOne();
-                        var coefCompress = stream.readOne(),
+                        direction_w[filt] = !!stream.read(1);
+                        var coefCompress = stream.read(1),
                             coefLen = coefRes + 3 - coefCompress,
                             tmp = 2 * coefCompress + coefRes,
                             table = TNS_TABLES[tmp],
@@ -96,7 +96,7 @@ var TNS = (function() {
                             coef_w_filt = coef_w[filt];
                             
                         for (var i = 0; i < order_w_filt; i++)
-                            coef_w_filt[i] = table[stream.readSmall(coefLen)];
+                            coef_w_filt[i] = table[stream.read(coefLen)];
                     }
                         
                 }

@@ -1428,13 +1428,13 @@ var Huffman = (function() {
         findOffset: function(stream, table) {
             var off = 0,
                 len = table[off][0],
-                cw = stream.readSmall(len);
+                cw = stream.read(len);
                 
             while (cw !== table[off][1]) {
                 var j = table[++off][0] - len;
                 len = table[off][0];
                 cw <<= j;
-                cw |= stream.readSmall(j); // TODO: find out why stream.read(j) returns weird values here
+                cw |= stream.read(j); // TODO: find out why stream.read(j) returns weird values here
             }
             
             return off;
@@ -1442,17 +1442,17 @@ var Huffman = (function() {
         
         signValues: function(stream, data, off, len) {
             for (var i = off; i < off + len; i++) {
-                if (data[i] && stream.readOne())
+                if (data[i] && stream.read(1))
                     data[i] = -data[i];
             }
         },
         
         getEscape: function(stream, s) {
             var i = 4;
-            while (stream.readOne())
+            while (stream.read(1))
                 i++;
                 
-            var j = stream.readSmall(i) | (1 << i);
+            var j = stream.read(i) | (1 << i);
             return s < 0 ? -j : j;
         },
         
