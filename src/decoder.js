@@ -20,6 +20,12 @@
 
 (function() {
     
+const SAMPLE_RATES = new Int32Array([
+    96000, 88200, 64000, 48000, 44100, 32000,
+    24000, 22050, 16000, 12000, 11025, 8000, 7350    
+]);
+    
+//import "adts_demuxer.js"
 //import "ics.js"
 //import "cpe.js"
 //import "cce.js"
@@ -28,11 +34,6 @@
 var AACDecoder = AV.Decoder.extend(function() {
     AV.Decoder.register('mp4a', this);
     AV.Decoder.register('aac ', this);
-    
-    const SAMPLE_RATES = new Int32Array([
-        96000, 88200, 64000, 48000, 44100, 32000,
-        24000, 22050, 16000, 12000, 11025, 8000, 7350    
-    ]);
     
     // AAC profiles
     const AOT_AAC_MAIN = 1, // no
@@ -75,6 +76,7 @@ var AACDecoder = AV.Decoder.extend(function() {
         }
             
         this.config.chanConfig = stream.read(4);
+        this.format.channelsPerFrame = this.config.chanConfig; // sometimes m4a files encode this wrong
         
         switch (this.config.profile) {
             case AOT_AAC_MAIN:
@@ -132,8 +134,9 @@ var AACDecoder = AV.Decoder.extend(function() {
         if (!stream.available(1))
             return this.once('available', this.readChunk);
         
+        // check if there is an ADTS header, and read it if so
         if (stream.peek(12) === 0xfff) {
-            this.emit('error', 'adts header') // NOPE
+            ADTSDemuxer.readHeader(stream);
         }
         
         this.cces = [];
