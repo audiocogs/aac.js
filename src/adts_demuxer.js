@@ -72,7 +72,7 @@ var ADTSDemuxer = AV.Demuxer.extend(function() {
         
         while (this.stream.available(1)) {
             var buffer = this.stream.readSingleBuffer(this.stream.remainingBytes());
-            this.emit('data', buffer, this.stream.remainingBytes() === 0);
+            this.emit('data', buffer);
         }
     };
 });
