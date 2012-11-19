@@ -83,7 +83,7 @@ var AACDecoder = AV.Decoder.extend(function() {
             case AOT_AAC_LC:
             case AOT_AAC_LTP:
                 if (stream.read(1)) // frameLengthFlag
-                    return this.emit('error', 'frameLengthFlag not supported');
+                    throw new Error('frameLengthFlag not supported');
                     
                 this.config.frameLength = 1024;
                     
@@ -102,14 +102,13 @@ var AACDecoder = AV.Decoder.extend(function() {
                 
                 if (this.config.chanConfig === CHANNEL_CONFIG_NONE) {
                     stream.advance(4) // element_instance_tag
-                    this.emit('error', 'PCE unimplemented');
+                    throw new Error('PCE unimplemented');
                 }
                 
                 break;
                 
             default:
-                this.emit('error', 'AAC profile ' + this.config.profile + ' not supported.');
-                return;
+                throw new Error('AAC profile ' + this.config.profile + ' not supported.');
         }
         
         this.filter_bank = new FilterBank(false, this.config.chanConfig);        
@@ -131,13 +130,9 @@ var AACDecoder = AV.Decoder.extend(function() {
     this.prototype.readChunk = function() {
         var stream = this.bitstream;
         
-        if (!stream.available(1))
-            return this.once('available', this.readChunk);
-        
         // check if there is an ADTS header, and read it if so
-        if (stream.peek(12) === 0xfff) {
+        if (stream.peek(12) === 0xfff)
             ADTSDemuxer.readHeader(stream);
-        }
         
         this.cces = [];
         var elements = [],
@@ -203,7 +198,7 @@ var AACDecoder = AV.Decoder.extend(function() {
                     break;
                     
                 default:
-                    return this.emit('error', 'Unknown element')
+                    throw new Error('Unknown element')
             }
         }
         
@@ -222,7 +217,7 @@ var AACDecoder = AV.Decoder.extend(function() {
             }
         }
         
-        this.emit('data', output);
+        return output;
     };
     
     this.prototype.process = function(elements) {
