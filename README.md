@@ -6,42 +6,43 @@ one of the most widely deployed audio codecs, and such names as the iTunes Store
 
 AAC can be played in a limited number of browsers using the HTML5 audio element, however, some browsers do not support the codec 
 for various reasons.  AAC.js enables playback and other decoding tasks in all browsers using the 
-[Aurora.js](https://github.com/ofmlabs/aurora.js) audio framework.
+[Aurora.js](https://github.com/audiocogs/aurora.js) audio framework.
 
 AAC.js is based on the prior work of many open source projects, including [JAAD](http://jaadec.sourceforge.net), 
 [FAAD](http://www.audiocoding.com/faad2.html), [FFMpeg](http://ffmpeg.org/), and [Helix Datatype](https://datatype.helixcommunity.org).
 
 ## Demo
 
-You can check out a [demo](http://labs.official.fm/codecs/aac/) alongside our other decoders 
-[jsmad](http://github.com/ofmlabs/jsmad) (MP3), [flac.js](https://github.com/ofmlabs/flac.js), and 
-[alac.js](http://github.com/ofmlabs/alac.js).  Currently AAC.js works properly in the latest versions of Firefox 
-and Chrome, as well as Safari 6 beta.
+You can check out a [demo](http://audiocogs.org/codecs/aac/) alongside our other decoders [MP3.js](http://github.com/devongovett/mp3.js), [flac.js](http://github.com/audiocogs/flac.js), and [alac.js](http://github.com/audiocogs/alac.js).  Currently, AAC.js works properly in the latest versions of Firefox, Chrome, and Safari.
 
 ## Authors
 
-AAC.js was written by [@devongovett](http://github.com/devongovett) of [Official.fm Labs](http://ofmlabs.org/).
+AAC.js was written by [@devongovett](http://github.com/devongovett) of [Audiocogs](http://audiocogs.org/).
 
 ## Building
 
-The [import](https://github.com/devongovett/import) module is used to build AAC.js.  You can run
-the development server by first installing `import` with npm, and then running it like this:
+Currently, the [importer](https://github.com/devongovett/importer) module is used to build aac.js.  You can run
+the development server on port `3030` by first installing `importer` with npm, and then running it like this:
 
-    sudo npm install import -g
-    import aac.js -p 3030
-
+    npm install importer -g
+    importer src/decoder.js -p 3030
+    
 You can also build a static version like this:
 
-    import aac.js build.js
+    importer src/decoder.js build.js
 
-Once it is running on port 3030, you can open test.html and select an AAC file from your system to play back.
+aac.js depends on [Aurora.js](https://github.com/audiocogs/aurora.js), our audio codec framework.  You will need
+to include either a prebuilt version of Aurora.js, or start another `importer` development server for Aurora before
+aac.js will work.  You can use the [test.html](https://github.com/audiocogs/aurora.js/blob/master/src/test.html) file
+in the Aurora.js repo as an example of how to use the APIs to play back audio files.  Just include aac.js on that 
+page as well in order to add support for AAC files.
 
 ## Features
 
 AAC.js supports the AAC Low Complexity Profile, which is the most common profile.  Support for the Main, High Efficiency 
 (Spectral Band Replication) and High Efficiency v2 (Spectral Band Replication + Parametric Stereo) profiles is planned.
-Other profiles, such as the low delay, and error resilient profiles are not supported, but we'd love pull requests if you feel
-motivated to implement them! :)
+Other profiles, such as the low delay, and error resilient profiles are not supported, but we'd love pull requests if 
+you feel motivated to implement them! :)
 
 ## License
 
