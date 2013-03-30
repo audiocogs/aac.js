@@ -164,10 +164,10 @@ var FFT = (function() {
                 input[i + 3][0] = e1[0];
                 input[i + 3][1] = e1[1];
             } else {
-                input[i + 1][0] = e1[0];
-                input[i + 1][1] = e1[1];
-                input[i + 3][0] = e2[0];
-                input[i + 3][1] = e2[1];
+                input[i + 1][0] = e1[0];
+                input[i + 1][1] = e1[1];
+                input[i + 3][0] = e2[0];
+                input[i + 3][1] = e2[1];
             }
         }
     
