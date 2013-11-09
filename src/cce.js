@@ -65,7 +65,8 @@ var CCEElement = (function() {
                 }
             }
     
-            this.couplingPoint += stream.read(1) || (this.couplingPoint >>> 1);
+            this.couplingPoint += stream.read(1);
+            this.couplingPoint |= (this.couplingPoint >>> 1);
     
             var sign = stream.read(1),
                 scale = CCE_SCALE[stream.read(2)];
