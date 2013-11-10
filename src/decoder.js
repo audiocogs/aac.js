@@ -50,12 +50,15 @@ var AACDecoder = AV.Decoder.extend(function() {
           CHANNEL_CONFIG_FIVE = 5,
           CHANNEL_CONFIG_FIVE_PLUS_ONE = 6,
           CHANNEL_CONFIG_SEVEN_PLUS_ONE = 8;
+          
+    this.prototype.init = function() {
+      this.format.floatingPoint = true;
+    }
     
     this.prototype.setCookie = function(buffer) {
         var data = AV.Stream.fromBuffer(buffer),
             stream = new AV.Bitstream(data);
         
-        this.format.bitsPerChannel = 16; // caf format doesn't encode this
         this.config = {};
         
         this.config.profile = stream.read(5);
@@ -208,12 +211,12 @@ var AACDecoder = AV.Decoder.extend(function() {
         // Interleave channels
         var data = this.data,
             channels = data.length,
-            output = new Int16Array(frameLength * channels),
+            output = new Float32Array(frameLength * channels),
             j = 0;
             
         for (var k = 0; k < frameLength; k++) {
             for (var i = 0; i < channels; i++) {
-                output[j++] = Math.max(Math.min(data[i][k], 32767), -32768);
+                output[j++] = data[i][k] / 32768;
             }
         }
         
@@ -223,7 +226,7 @@ var AACDecoder = AV.Decoder.extend(function() {
     this.prototype.process = function(elements) {
         var channels = this.config.chanConfig;
         
-        // if (channels === 1 && psPresent)
+        // if (channels === 1 &&  psPresent)
         // TODO: sbrPresent (2)
         var mult = 1;
         
