@@ -1,3 +1,6 @@
+var AV = require('av');
+var tables = require('./tables');
+
 var ADTSDemuxer = AV.Demuxer.extend(function() {
     AV.Demuxer.register(this);
     
@@ -55,7 +58,7 @@ var ADTSDemuxer = AV.Demuxer.extend(function() {
             
             this.emit('format', {
                 formatID: 'aac ',
-                sampleRate: SAMPLE_RATES[header.samplingIndex],
+                sampleRate: tables.SAMPLE_RATES[header.samplingIndex],
                 channelsPerFrame: header.chanConfig,
                 bitsPerChannel: 16
             });

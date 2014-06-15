@@ -124,7 +124,7 @@ const SWB_OFFSET_128_8 = new Uint16Array([
     36,  44,  52,  60,  72,  88, 108, 128
 ]);
 
-const SWB_OFFSET_1024 = [
+exports.SWB_OFFSET_1024 = [
     SWB_OFFSET_1024_96,
     SWB_OFFSET_1024_96,
     SWB_OFFSET_1024_64,
@@ -139,7 +139,7 @@ const SWB_OFFSET_1024 = [
     SWB_OFFSET_1024_8
 ];
 
-const SWB_OFFSET_128 = [
+exports.SWB_OFFSET_128 = [
     SWB_OFFSET_128_96,
     SWB_OFFSET_128_96,
     SWB_OFFSET_128_64,
@@ -154,18 +154,18 @@ const SWB_OFFSET_128 = [
     SWB_OFFSET_128_8
 ];
 
-const SWB_SHORT_WINDOW_COUNT = new Uint8Array([
+exports.SWB_SHORT_WINDOW_COUNT = new Uint8Array([
     12, 12, 12, 14, 14, 14, 15, 15, 15, 15, 15, 15
 ]);
 
-const SWB_LONG_WINDOW_COUNT = new Uint8Array([
+exports.SWB_LONG_WINDOW_COUNT = new Uint8Array([
     41, 41, 47, 49, 49, 51, 47, 47, 43, 43, 43, 40
 ]);
 
 /*
  * Scalefactor lookup table
  */
-const SCALEFACTOR_TABLE = (function() {
+exports.SCALEFACTOR_TABLE = (function() {
     var table = new Float32Array(428);
     
     for (var i = 0; i < 428; i++) {
@@ -179,7 +179,7 @@ const SCALEFACTOR_TABLE = (function() {
 /**
  * Inverse quantization lookup table
  */
-const IQ_TABLE = (function() {
+exports.IQ_TABLE = (function() {
     var table = new Float32Array(8191),
         four_thirds = 4/3;
         
@@ -189,3 +189,8 @@ const IQ_TABLE = (function() {
     
     return table;
 })();
+
+exports.SAMPLE_RATES = new Int32Array([
+    96000, 88200, 64000, 48000, 44100, 32000,
+    24000, 22050, 16000, 12000, 11025, 8000, 7350    
+]);
