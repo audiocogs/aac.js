@@ -436,3 +436,5 @@ var AACDecoder = AV.Decoder.extend(function() {
     };
     
 });
+
+module.exports = AACDecoder;
