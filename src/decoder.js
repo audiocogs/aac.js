@@ -18,18 +18,13 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
-(function() {
-    
-const SAMPLE_RATES = new Int32Array([
-    96000, 88200, 64000, 48000, 44100, 32000,
-    24000, 22050, 16000, 12000, 11025, 8000, 7350    
-]);
-    
-//import "adts_demuxer.js"
-//import "ics.js"
-//import "cpe.js"
-//import "cce.js"
-//import "filter_bank.js"
+var AV          = require('av');
+var ADTSDemuxer = require('./adts_demuxer');
+var ICStream    = require('./ics');
+var CPEElement  = require('./cpe');
+var CCEElement  = require('./cce');
+var FilterBank  = require('./filter_bank');
+var tables      = require('./tables');
 
 var AACDecoder = AV.Decoder.extend(function() {
     AV.Decoder.register('mp4a', this);
@@ -68,14 +63,14 @@ var AACDecoder = AV.Decoder.extend(function() {
         this.config.sampleIndex = stream.read(4);
         if (this.config.sampleIndex === 0x0f) {
             this.config.sampleRate = stream.read(24);
-            for (var i = 0; i < SAMPLE_RATES.length; i++) {
-                if (SAMPLE_RATES[i] === this.config.sampleRate) {
+            for (var i = 0; i < tables.SAMPLE_RATES.length; i++) {
+                if (tables.SAMPLE_RATES[i] === this.config.sampleRate) {
                     this.config.sampleIndex = i;
                     break;
                 }
             }
         } else {
-            this.config.sampleRate = SAMPLE_RATES[this.config.sampleIndex];
+            this.config.sampleRate = tables.SAMPLE_RATES[this.config.sampleIndex];
         }
             
         this.config.chanConfig = stream.read(4);
@@ -442,4 +437,4 @@ var AACDecoder = AV.Decoder.extend(function() {
     
 });
 
-})();
+module.exports = AACDecoder;

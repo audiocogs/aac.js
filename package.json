@@ -1,0 +1,37 @@
+{
+  "name": "aac",
+  "version": "0.1.0",
+  "description": "An AAC decoder for Aurora.js",
+  "main": "src/decoder.js",
+  "peerDependencies": {
+    "av": "~0.4.0"
+  },
+  "devDependencies": {
+    "exorcist": "^0.1.6",
+    "browserify": "^4.1.10",
+    "browserify-shim": "^3.5.0"
+  },
+  "browserify": {
+    "transform": ["browserify-shim"]
+  },
+  "browserify-shim": {
+    "av": "global:AV"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/audiocogs/aac.js"
+  },
+  "keywords": [
+    "audio",
+    "av",
+    "aurora.js",
+    "aurora",
+    "decode"
+  ],
+  "author": "Devon Govett <devongovett@gmail.com>",
+  "license": "LGPL",
+  "bugs": {
+    "url": "https://github.com/audiocogs/aac.js/issues"
+  },
+  "homepage": "https://github.com/audiocogs/aac.js"
+}

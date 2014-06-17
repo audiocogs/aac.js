@@ -18,8 +18,8 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
-//import "mdct_tables.js"
-//import "fft.js"
+var tables = require('./mdct_tables');
+var FFT = require('./fft');
 
 // Modified Discrete Cosine Transform
 function MDCT(length) {
@@ -30,19 +30,19 @@ function MDCT(length) {
     
     switch (length) {
         case 2048:
-            this.sincos = MDCT_TABLE_2048;
+            this.sincos = tables.MDCT_TABLE_2048;
             break;
             
         case 256:
-            this.sincos = MDCT_TABLE_256;
+            this.sincos = tables.MDCT_TABLE_256;
             break;
             
         case 1920:
-            this.sincos = MDCT_TABLE_1920;
+            this.sincos = tables.MDCT_TABLE_1920;
             break;
             
         case 240:
-            this.sincos = MDCT_TABLE_240;
+            this.sincos = tables.MDCT_TABLE_240;
             break;
             
         default:
@@ -113,3 +113,5 @@ MDCT.prototype.process = function(input, inOffset, output, outOffset) {
         output[outOffset + N2 + N4 + 3 + 2 * k] = buf[N4 - 2 - k][0];
     }
 };
+
+module.exports = MDCT;
