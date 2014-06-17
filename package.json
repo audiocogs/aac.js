@@ -6,6 +6,17 @@
   "peerDependencies": {
     "av": "~0.4.0"
   },
+  "devDependencies": {
+    "exorcist": "^0.1.6",
+    "browserify": "^4.1.10",
+    "browserify-shim": "^3.5.0"
+  },
+  "browserify": {
+    "transform": ["browserify-shim"]
+  },
+  "browserify-shim": {
+    "av": "global:AV"
+  },
   "repository": {
     "type": "git",
     "url": "git://github.com/audiocogs/aac.js"
