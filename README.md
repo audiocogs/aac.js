@@ -21,21 +21,17 @@ AAC.js was written by [@devongovett](http://github.com/devongovett) of [Audiocog
 
 ## Building
 
-Currently, the [importer](https://github.com/devongovett/importer) module is used to build aac.js.  You can run
-the development server on port `3030` by first installing `importer` with npm, and then running it like this:
+We use [browserify](https://github.com/substack/node-browserify) to build AAC.js.  You can download a
+prebuilt version from the Github [releases](https://github.com/audiocogs/aac.js/releases) page. 
+To build AAC.js for the browser yourself, use the following commands:
 
-    npm install importer -g
-    importer src/decoder.js -p 3030
+    npm install
+    make browser
     
-You can also build a static version like this:
+This will place a built `aac.js` file, as well as a source map in the `build/` directory.
 
-    importer src/decoder.js build.js
-
-aac.js depends on [Aurora.js](https://github.com/audiocogs/aurora.js), our audio codec framework.  You will need
-to include either a prebuilt version of Aurora.js, or start another `importer` development server for Aurora before
-aac.js will work.  You can use the [test.html](https://github.com/audiocogs/aurora.js/blob/master/src/test.html) file
-in the Aurora.js repo as an example of how to use the APIs to play back audio files.  Just include aac.js on that 
-page as well in order to add support for AAC files.
+AAC.js depends on [Aurora.js](https://github.com/audiocogs/aurora.js), our audio codec framework.
+For detailed information on how to use Aurora.js, check out the [documentation](https://github.com/audiocogs/aurora.js/wiki).
 
 ## Features
 
