@@ -1,6 +1,6 @@
 {
   "name": "aac",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "An AAC decoder for Aurora.js",
   "main": "src/decoder.js",
   "peerDependencies": {
@@ -12,7 +12,9 @@
     "browserify-shim": "^3.5.0"
   },
   "browserify": {
-    "transform": ["browserify-shim"]
+    "transform": [
+      "browserify-shim"
+    ]
   },
   "browserify-shim": {
     "av": "global:AV"
