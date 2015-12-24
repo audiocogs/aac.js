@@ -79,3 +79,5 @@ var ADTSDemuxer = AV.Demuxer.extend(function() {
         }
     };
 });
+
+module.exports = ADTSDemuxer;
