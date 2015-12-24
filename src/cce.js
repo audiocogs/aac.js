@@ -103,8 +103,8 @@ CCEElement.prototype = {
                                 if (t !== 0) {
                                     var s = 1;
                                     t = gain += t;
-                                    if (sign) {
-                                        s -= 2 * (t * 0x1);
+                                    if (!sign) {
+                                        s -= 2 * (t & 0x1);
                                         t >>>= 1;
                                     }
                                     gainCache = Math.pow(scale, -t) * s;
