@@ -110,9 +110,6 @@ var AACDecoder = AV.Decoder.extend(function() {
         }
         
         this.filter_bank = new FilterBank(false, this.config.chanConfig);        
-        this.ics = new ICStream(this.config);
-        this.cpe = new CPEElement(this.config);
-        this.cce = new CCEElement(this.config);
     };
     
     const SCE_ELEMENT = 0,
@@ -145,7 +142,7 @@ var AACDecoder = AV.Decoder.extend(function() {
                 // single channel and low frequency elements
                 case SCE_ELEMENT:
                 case LFE_ELEMENT:
-                    var ics = this.ics;
+                    var ics = new ICStream(this.config);
                     ics.id = id;
                     elements.push(ics);
                     ics.decode(stream, config, false);
@@ -153,7 +150,7 @@ var AACDecoder = AV.Decoder.extend(function() {
                     
                 // channel pair element
                 case CPE_ELEMENT:
-                    var cpe = this.cpe;
+                    var cpe = new CPEElement(this.config);
                     cpe.id = id;
                     elements.push(cpe);
                     cpe.decode(stream, config);
@@ -161,7 +158,7 @@ var AACDecoder = AV.Decoder.extend(function() {
                 
                 // channel coupling element
                 case CCE_ELEMENT:
-                    var cce = this.cce;
+                    var cce = new CCEElement(this.config);
                     this.cces.push(cce);
                     cce.decode(stream, config);
                     break;
