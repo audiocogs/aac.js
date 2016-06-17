@@ -231,7 +231,7 @@ ICStream.prototype = {
                         var energy = 0;
                         
                         for (var k = 0; k < width; k++) {
-                            this.randomState *= 1664525 + 1013904223;
+                            this.randomState = (this.randomState * (1664525 + 1013904223))|0;
                             data[off + k] = this.randomState;
                             energy += data[off + k] * data[off + k];
                         }
