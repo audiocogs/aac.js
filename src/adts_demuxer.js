@@ -1,10 +1,8 @@
 var AV = require('av');
 var tables = require('./tables');
 
-var ADTSDemuxer = AV.Demuxer.extend(function() {
-    AV.Demuxer.register(this);
-    
-    this.probe = function(stream) {
+class ADTSDemuxer extends AV.Demuxer {
+    static probe(stream) {
         var offset = stream.offset;
         
         // attempt to find ADTS syncword
@@ -17,15 +15,15 @@ var ADTSDemuxer = AV.Demuxer.extend(function() {
         
         stream.seek(offset);
         return false;
-    };
+    }
         
-    this.prototype.init = function() {
+    init() {
         this.bitstream = new AV.Bitstream(this.stream);
-    };
+    }
     
     // Reads an ADTS header
     // See http://wiki.multimedia.cx/index.php?title=ADTS
-    this.readHeader = function(stream) {
+    static readHeader(stream) {
         if (stream.read(12) !== 0xfff)
             throw new Error('Invalid ADTS header.');
             
@@ -49,9 +47,9 @@ var ADTSDemuxer = AV.Demuxer.extend(function() {
             stream.advance(16);
         
         return ret;
-    };
+    }
     
-    this.prototype.readChunk = function() {
+    readChunk() {
         if (!this.sentHeader) {
             var offset = this.stream.offset;
             var header = ADTSDemuxer.readHeader(this.bitstream);
@@ -77,7 +75,9 @@ var ADTSDemuxer = AV.Demuxer.extend(function() {
             var buffer = this.stream.readSingleBuffer(this.stream.remainingBytes());
             this.emit('data', buffer);
         }
-    };
-});
+    }
+}
+
+AV.Demuxer.register(ADTSDemuxer);
 
 module.exports = ADTSDemuxer;
