@@ -29,6 +29,8 @@ class SBR {
     
     this.qmfA = new AnalysisFilterbank;
     this.qmfS = new SynthesisFilterbank;
+    this.hfGen = new HFGenerator;
+    this.hfAdj = new HFAdjuster;
     
     this.X = makeArray([2, 64, 38, 2]);
     this.Xlow = makeArray([32, 40, 2]);
@@ -258,10 +260,10 @@ class SBR {
     // }
 
     // 4. HF generation (Xlow -> Xhigh)
-    HFGenerator(this.tables, this.cd[ch], this.Xlow, this.Xhigh);
+    this.hfGen.process(this.tables, this.cd[ch], this.Xlow, this.Xhigh);
     
     // 6. HF adjustment (Xhigh -> Y)
-    HFAdjuster(this.header, this.tables, this.cd[ch], this.Xhigh, this.cd[ch].Y[this.cd[ch].Ypos]);
+    this.hfAdj.process(this.header, this.tables, this.cd[ch], this.Xhigh, this.cd[ch].Y[this.cd[ch].Ypos]);
 
     // 5. old Y -> X
     let lTemp = this.cd[ch].lTemp;

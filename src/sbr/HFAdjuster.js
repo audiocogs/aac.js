@@ -18,368 +18,354 @@ const PHI = [
 ];
 const MAX_GAIN = 100000;
 
-// class Parameter {
-//   //helper class containing arrays calculated by and passed to different methods
-//   float[][] eMapped, qMapped;
-//   boolean[][] sIndexMapped, sMapped;
-//   float[][] Qm, Sm, Glim;
-// }
-
-export default function process(header, tables, cd, Xhigh, Y) {
-  let p = map(tables, cd);
-  let eCurr = estimateEnvelopes(header, tables, cd, Xhigh);
-  calculateGain(header, tables, cd, p, eCurr);
-  assembleSignals(header, tables, cd, p, Xhigh, Y);
-}
-
-// mapping of dequantized values (4.6.18.7.2)
-function map(tables, cd) {
-  // parameter from FrequencyTables
-  let kx = tables.kx;
-  let noiseTable = tables.fNoise;
-  let fHigh = tables.fTable[HIGH];
-  let nHigh = tables.n[HIGH];
-  let M = tables.m;
-  let nq = tables.nq;
-
-  // parameter from ChannelData
-  let le = cd.envCount;
-  let lq = cd.noiseCount;
-  let freqRes = cd.freqRes;
-  let la = cd.la;
-
-  //input and output arrays
-  let eOrig = cd.envelopeSF;
-  let eMapped = makeArray([7, 48]);
-  let qOrig = cd.noiseFloorData;
-  let qMapped = makeArray([7, 48]);
-  let sinusoidals = cd.sinusoidals;
-  let sIndexMappedPrev = cd.sIndexMappedPrevious;
-  let sIndexMapped = makeArray([7, 48], Uint8Array);
-  let sMapped = makeArray([7, 48], Uint8Array);
-
-  // tmp integer
-  let fr, maxI, k, i, m;
-  let table;
-
-  for (let e = 0; e < le; e++) {
-    // envelopes: eOrig -> eMapped
-    fr = freqRes[e];
-    maxI = tables.n[fr];
-    table = tables.fTable[fr];
-
-    for (i = 0; i < maxI; i++) {
-      for (m = table[i]; m < table[i + 1]; m++) {
-        eMapped[e][m - kx] = eOrig[e][i];
-      }
-    }
-
-    // noise: qOrig -> qMapped
-    k = ((lq > 1) && (cd.te[e] >= cd.tq[1])) ? 1 : 0;
-    for (i = 0; i < nq; i++) {
-      for (m = noiseTable[i]; m < noiseTable[i + 1]; m++) {
-        qMapped[e][m - kx] = qOrig[k][i];
-      }
-    }
-
-    // sinusoidals: cd.sinusoidals -> sIndexMapped
-    for (i = 0; i < nHigh; i++) {
-      if (cd.sinusoidalsPresent) {
-        m = (fHigh[i] + fHigh[i + 1]) >> 1;
-        sIndexMapped[e][m - kx] = sinusoidals[i] && (e >= la || sIndexMappedPrev[m - kx]) ? 1 : 0;
-      }
-    }
-    
-    // sinusoidals: sIndexMapped -> sMapped
-    let found;
-    for (i = 0; i < maxI; i++) {
-      found = 0;
-      for (m = table[i]; m < table[i + 1]; m++) {
-        if (sIndexMapped[e][m - kx]) {
-          found = 1;
-          break;
-        }
-      }
-      
-      for (m = table[i]; m < table[i + 1]; m++) {
-        sMapped[e][m - kx] = found;
-      }
-    }
+export default class HFAdjuster {
+  constructor() {
+    this.eMapped = makeArray([7, 48]);
+    this.qMapped = makeArray([7, 48]);
+    this.sIndexMapped = makeArray([7, 48], Uint8Array);
+    this.sMapped = makeArray([7, 48], Uint8Array);
+    this.eCurr = makeArray([7, 48]);
+    this.Qm = makeArray([7, 48]);
+    this.Sm = makeArray([7, 48]);
+    this.gain = makeArray([7, 48]);
   }
+  
+  process(header, tables, cd, Xhigh, Y) {
+    this.map(tables, cd);
+    this.estimateEnvelopes(header, tables, cd, Xhigh);
+    this.calculateGain(header, tables, cd);
+    this.assembleSignals(header, tables, cd, Xhigh, Y);
+  }
+  
+  // mapping of dequantized values (4.6.18.7.2)
+  map(tables, cd) {
+    // parameter from FrequencyTables
+    let kx = tables.kx;
+    let noiseTable = tables.fNoise;
+    let fHigh = tables.fTable[HIGH];
+    let nHigh = tables.n[HIGH];
+    let M = tables.m;
+    let nq = tables.nq;
 
-  // fill with 0, because next frame may be larger than this one
-  cd.sIndexMappedPrevious.fill(0);
-  cd.sIndexMappedPrevious.set(sIndexMapped[le - 1]);
-
-  return {eMapped, qMapped, sIndexMapped, sMapped};
-}
-
-// envelope estimation (4.6.18.7.3)
-function estimateEnvelopes(header, tables, cd, Xhigh) {
-  let te = cd.te;
-  let M = tables.m;
-  let kx = tables.kx;
-  let le = cd.envCount;
-
-  let eCurr = makeArray([7, 48]);
-
-  let sum;
-  let e, m, i, iLow, iHigh;
-  if (header.interpolFrequency) {
-    let div;
-
-    for (e = 0; e < le; e++) {
-      div = 0.5 / (te[e + 1] - te[e]);
-      iLow = RATE * te[e] + T_HF_ADJ;
-      iHigh = RATE * te[e + 1] + T_HF_ADJ;
-
-      for (m = 0; m < M; m++) {
-        sum = 0.0;
-
-        //energy = sum over squares of absolute value
-        for (i = iLow; i < iHigh; i++) {
-          sum += Xhigh[m + kx][i][0] * Xhigh[m + kx][i][0] + Xhigh[m + kx][i][1] * Xhigh[m + kx][i][1];
-        }
-        
-        eCurr[e][m] = sum * div;
-      }
-    }
-  } else {
-    let n = tables.n;
+    // parameter from ChannelData
+    let le = cd.envCount;
+    let lq = cd.noiseCount;
     let freqRes = cd.freqRes;
+    let la = cd.la;
 
-    let k;
+    //input and output arrays
+    let eOrig = cd.envelopeSF;
+    let eMapped = this.eMapped;
+    let qOrig = cd.noiseFloorData;
+    let qMapped = this.qMapped;
+    let sinusoidals = cd.sinusoidals;
+    let sIndexMappedPrev = cd.sIndexMappedPrevious;
+    let sIndexMapped = this.sIndexMapped;
+    let sMapped = this.sMapped;
+
+    // tmp integer
+    let fr, maxI, k, i, m;
     let table;
-    let div1, div2;
 
-    for (e = 0; e < le; e++) {
-      div1 = RATE * (te[e + 1] - te[e]);
-      iLow = RATE * te[e] + T_HF_ADJ;
-      iHigh = RATE * te[e + 1] + T_HF_ADJ;
-      table = tables.fTable[freqRes[e + 1]];
+    for (let e = 0; e < le; e++) {
+      // envelopes: eOrig -> eMapped
+      fr = freqRes[e];
+      maxI = tables.n[fr];
+      table = tables.fTable[fr];
 
-      for (m = 0; m < n[freqRes[e + 1]]; m++) {
-        sum = 0.0;
-        div2 = div1 * (table[m + 1] - table[m]);
+      for (i = 0; i < maxI; i++) {
+        for (m = table[i]; m < table[i + 1]; m++) {
+          eMapped[e][m - kx] = eOrig[e][i];
+        }
+      }
 
-        for (k = table[m]; k < table[m + 1]; k++) {
-          for (i = iLow; i < iHigh; i++) {
-            sum += Xhigh[k][i][0] * Xhigh[k][i][0] + Xhigh[k][i][1] * Xhigh[k][i][1];
+      // noise: qOrig -> qMapped
+      k = ((lq > 1) && (cd.te[e] >= cd.tq[1])) ? 1 : 0;
+      for (i = 0; i < nq; i++) {
+        for (m = noiseTable[i]; m < noiseTable[i + 1]; m++) {
+          qMapped[e][m - kx] = qOrig[k][i];
+        }
+      }
+
+      // sinusoidals: cd.sinusoidals -> sIndexMapped
+      for (i = 0; i < nHigh; i++) {
+        if (cd.sinusoidalsPresent) {
+          m = (fHigh[i] + fHigh[i + 1]) >> 1;
+          sIndexMapped[e][m - kx] = sinusoidals[i] && (e >= la || sIndexMappedPrev[m - kx]) ? 1 : 0;
+        }
+      }
+    
+      // sinusoidals: sIndexMapped -> sMapped
+      let found;
+      for (i = 0; i < maxI; i++) {
+        found = 0;
+        for (m = table[i]; m < table[i + 1]; m++) {
+          if (sIndexMapped[e][m - kx]) {
+            found = 1;
+            break;
           }
         }
-        
-        sum /= div2;
-        
-        for (k = table[m]; k < table[m + 1]; k++) {
-          eCurr[e][k - kx] = sum;
+      
+        for (m = table[i]; m < table[i + 1]; m++) {
+          sMapped[e][m - kx] = found;
         }
       }
     }
+
+    // fill with 0, because next frame may be larger than this one
+    cd.sIndexMappedPrevious.fill(0);
+    cd.sIndexMappedPrevious.set(sIndexMapped[le - 1]);
   }
+  
+  // envelope estimation (4.6.18.7.3)
+  estimateEnvelopes(header, tables, cd, Xhigh) {
+    let te = cd.te;
+    let M = tables.m;
+    let kx = tables.kx;
+    let le = cd.envCount;
+    let eCurr = this.eCurr;
 
-  return eCurr;
-}
+    let sum;
+    let e, m, i, iLow, iHigh;
+    if (header.interpolFrequency) {
+      let div;
 
-//calculation of levels of additional HF signal components (4.6.18.7.4) and gain calculation (4.6.18.7.5)
-function calculateGain(header, tables, cd, p, eCurr) {
-  let limGain = header.limiterGains;
-  let M = tables.m;
-  let nl = tables.nl;
-  let fLim = tables.fLim;
-  let kx = tables.kx;
+      for (e = 0; e < le; e++) {
+        div = 0.5 / (te[e + 1] - te[e]);
+        iLow = RATE * te[e] + T_HF_ADJ;
+        iHigh = RATE * te[e + 1] + T_HF_ADJ;
 
-  let la = cd.la;
-  let laPrevious = cd.laPrevious === cd.envCountPrev ? 0 : -1;
-  let le = cd.envCount;
+        for (m = 0; m < M; m++) {
+          sum = 0.0;
 
-  // output arrays
-  let Qm = makeArray([7, 48]);
-  let Sm = makeArray([7, 48]);
-  let gain = makeArray([7, 48]);
-
-  let delta, delta2;
-  let m, k, i;
-  let km = new Int32Array(M);
-  let eMappedSum = new Float32Array(nl);
-  let tmp;
-  let gTemp = makeArray([le, nl]);
-  let gMax;
-
-  // TODO: optimize this loops
-  for (let e = 0; e < le; e++) {
-    delta = !((e == la) || (e == laPrevious)) ? 1 : 0;
-    
-    for (k = 0; k < nl; k++) {
-      let sum0, sum1;
-      
-      // level of additional HF components + gain
-      for (m = fLim[k] - kx; m < fLim[k + 1] - kx; m++) {
-        tmp = p.eMapped[e][m] / (1.0 + p.qMapped[e][m]);
-        Qm[e][m] = Math.sqrt(tmp * p.qMapped[e][m]);
-        Sm[e][m] = Math.sqrt(tmp * p.sIndexMapped[e][m]);
-
-        if (p.sMapped[e][m] === 0) {
-          gain[e][m] = Math.sqrt(p.eMapped[e][m] / ((1.0 + eCurr[e][m]) * (1.0 + p.qMapped[e][m] * delta)));
-        } else {
-          gain[e][m] = Math.sqrt(p.eMapped[e][m] * p.qMapped[e][m] / ((1.0 + eCurr[e][m]) * (1.0 + p.qMapped[e][m])));
+          //energy = sum over squares of absolute value
+          for (i = iLow; i < iHigh; i++) {
+            sum += Xhigh[m + kx][i][0] * Xhigh[m + kx][i][0] + Xhigh[m + kx][i][1] * Xhigh[m + kx][i][1];
+          }
+        
+          eCurr[e][m] = sum * div;
         }
       }
-      
-      sum0 = sum1 = 0.0;
-      for (m = fLim[k] - kx; m < fLim[k + 1] - kx; m++) {
-        sum0 += p.eMapped[e][m];
-        sum1 += eCurr[e][m];
+    } else {
+      let n = tables.n;
+      let freqRes = cd.freqRes;
+
+      let k;
+      let table;
+      let div1, div2;
+
+      for (e = 0; e < le; e++) {
+        div1 = RATE * (te[e + 1] - te[e]);
+        iLow = RATE * te[e] + T_HF_ADJ;
+        iHigh = RATE * te[e + 1] + T_HF_ADJ;
+        table = tables.fTable[freqRes[e + 1]];
+
+        for (m = 0; m < n[freqRes[e + 1]]; m++) {
+          sum = 0.0;
+          div2 = div1 * (table[m + 1] - table[m]);
+
+          for (k = table[m]; k < table[m + 1]; k++) {
+            for (i = iLow; i < iHigh; i++) {
+              sum += Xhigh[k][i][0] * Xhigh[k][i][0] + Xhigh[k][i][1] * Xhigh[k][i][1];
+            }
+          }
+        
+          sum /= div2;
+        
+          for (k = table[m]; k < table[m + 1]; k++) {
+            eCurr[e][k - kx] = sum;
+          }
+        }
       }
-      
-      gMax = LIMITER_GAINS[limGain] * Math.sqrt((EPSILON_0 + sum0) / (EPSILON_0 + sum1));
-      gMax = Math.min(MAX_GAIN, gMax);
-      // console.log(gMax, limGain, LIMITER_GAINS[limGain], EPSILON_0, sum0, sum1)
-      
-      for (m = fLim[k] - kx; m < fLim[k + 1] - kx; m++) {
-        let qmMax = Qm[e][m] * gMax / gain[e][m];
-        Qm[e][m] = Math.min(Qm[e][m], qmMax);
-        gain[e][m] = Math.min(gain[e][m], gMax);
-      }
-      
-      sum0 = sum1 = 0.0;
-      for (m = fLim[k] - kx; m < fLim[k + 1] - kx; m++) {
-        sum0 += p.eMapped[e][m];
-        sum1 += eCurr[e][m] * gain[e][m] * gain[e][m]
-              + Sm[e][m] * Sm[e][m]
-              + ((delta && !Sm[e][m]) ? 1 : 0) * Qm[e][m] * Qm[e][m];
-      }
-      
-      let gainBoost = Math.sqrt((EPSILON_0 + sum0) / (EPSILON_0 + sum1));
-      gainBoost = Math.min(MAX_BOOST, gainBoost);
-      for (m = fLim[k] - kx; m < fLim[k + 1] - kx; m++) {
-        gain[e][m] *= gainBoost;
-        Qm[e][m] *= gainBoost;
-        Sm[e][m] *= gainBoost;
-        // if (isNaN(gain[e][m])) {
-          // console.log(gainBoost, sum0, sum1)
-        // }
-      }
-    }
-  }
-
-  p.Qm = Qm;
-  p.Sm = Sm;
-  p.Glim = gain;
-}
-
-function checkNaN(arr) {
-  for (let i = 0; i < arr.length; i++) {
-    if (isNaN(arr[i])) {
-      console.log('NaN', i);
-      break;
-    }
-  }
-}
-
-// assembling HF signals (4.6.18.7.5)
-function assembleSignals(header, tables, cd, p, Xhigh, Y) {
-  let reset = header.reset;
-  let hSL = header.smoothingMode ? 0 : 4;
-  let M = tables.m
-  let le = cd.envCount;
-  let lePrev = cd.envCountPrev;
-  let te = cd.te;
-  let la = cd.la;
-  let laPrev = cd.laPrevious === cd.envCountPrev ? 0 : -1;
-  let kx = tables.kx;
-  let noiseIndex = reset ? 0 : cd.noiseIndex;
-  let sineIndex = cd.sineIndex;
-
-  let gTmp = cd.gTmp;
-  let qTmp = cd.qTmp;
-
-  let e, i, m, j;
-
-  // save previous values
-  if (reset) {
-    for (i = 0; i < hSL; i++) {
-      gTmp[i + 2 * te[0]].set(p.Glim[0].subarray(0, M));
-      qTmp[i + 2 * te[0]].set(p.Qm[0].subarray(0, M));
-    }
-  } else if (hSL !== 0) {
-    for (i = 0; i < 4; i++) {
-      gTmp[i + 2 * te[0]].set(gTmp[i + 2 * cd.tePrevious]);
-      qTmp[i + 2 * te[0]].set(qTmp[i + 2 * cd.tePrevious]);
     }
   }
   
-  for (e = 0; e < le; e++) {
-    for (i = 2 * te[e]; i < 2 * te[e + 1]; i++) {
-      gTmp[hSL + i].set(p.Glim[e].subarray(0, M));
-      qTmp[hSL + i].set(p.Qm[e].subarray(0, M));
-    }
-  }
+  //calculation of levels of additional HF signal components (4.6.18.7.4) and gain calculation (4.6.18.7.5)
+  calculateGain(header, tables, cd) {
+    let limGain = header.limiterGains;
+    let M = tables.m;
+    let nl = tables.nl;
+    let fLim = tables.fLim;
+    let kx = tables.kx;
 
-  // calculate new
-  let gFilt, qFilt;
+    let la = cd.la;
+    let laPrevious = cd.laPrevious === cd.envCountPrev ? 0 : -1;
+    let le = cd.envCount;
 
-  for (e = 0; e < le; e++) {
-    for (i = RATE * te[e]; i < RATE * te[e + 1]; i++) {
-      if (hSL !== 0 && e !== la && e != laPrev) {
-        for (m = 0; m < M; m++) {
-          let idx1 = i + hSL;
-          gFilt = 0.0;
-          for (j = 0; j <= hSL; j++) {
-            gFilt += gTmp[idx1 - j][m] * SMOOTHING_FACTORS[j];
-          }
-          Y[i][m + kx][0] = Xhigh[m + kx][i + T_HF_ADJ][0] * gFilt;
-          Y[i][m + kx][1] = Xhigh[m + kx][i + T_HF_ADJ][1] * gFilt;
-        }
-      } else {
-        for (m = 0; m < M; m++) {
-          gFilt = gTmp[i + hSL][m];
-          Y[i][m + kx][0] = Xhigh[m + kx][i + T_HF_ADJ][0] * gFilt;
-          Y[i][m + kx][1] = Xhigh[m + kx][i + T_HF_ADJ][1] * gFilt;
-        }
-      }
+    // output arrays
+    let Qm = this.Qm;
+    let Sm = this.Sm;
+    let gain = this.gain;
+    let eCurr = this.eCurr;
 
-      if (e !== la && e !== laPrev) {
-        let phiSign = (1 - 2 * (kx & 1));
-        
-        for (m = 0; m < M; m++) {
-          if (p.Sm[e][m] !== 0) {
-            Y[i][m + kx][0] += p.Sm[e][m] * PHI[0][sineIndex];
-            Y[i][m + kx][1] += p.Sm[e][m] * (PHI[1][sineIndex] * phiSign);
-          } else {
-            if (hSL !== 0) {
-              let idx1 = i + hSL;
-              qFilt = 0.0;
-              for (j = 0; j <= hSL; j++) {
-                qFilt += qTmp[idx1 - j][m] * SMOOTHING_FACTORS[j];
-              }
-            } else {
-              qFilt = qTmp[i][m];
-            }
-            Y[i][m + kx][0] += qFilt * NOISE_TABLE[noiseIndex][0];
-            Y[i][m + kx][1] += qFilt * NOISE_TABLE[noiseIndex][1];
-          }
-          phiSign = -phiSign;
-        }
-      } else {
-        let phiSign = (1 - 2 * (kx & 1));
-        for (m = 0; m < M; m++) {
-          Y[i][m + kx][0] += p.Sm[e][m] * PHI[0][sineIndex];
-          Y[i][m + kx][1] += p.Sm[e][m] * (PHI[1][sineIndex] * phiSign);
-          phiSign = -phiSign;
-          
-          if (isNaN(Y[i][m + kx][0]) || isNaN(Y[i][m + kx][1])) {
-            console.log(p.Sm[e][m], PHI[0][sineIndex]);
-          }
-        }
-      }
+    let delta, delta2;
+    let m, k, i;
+    let tmp;
+    let gMax;
+
+    // TODO: optimize this loops
+    for (let e = 0; e < le; e++) {
+      delta = !((e == la) || (e == laPrevious)) ? 1 : 0;
+    
+      for (k = 0; k < nl; k++) {
+        let sum0, sum1;
       
-      noiseIndex = (noiseIndex + 1) & 0x1ff;
-      sineIndex = (sineIndex + 1) & 3;
+        // level of additional HF components + gain
+        for (m = fLim[k] - kx; m < fLim[k + 1] - kx; m++) {
+          tmp = this.eMapped[e][m] / (1.0 + this.qMapped[e][m]);
+          Qm[e][m] = Math.sqrt(tmp * this.qMapped[e][m]);
+          Sm[e][m] = Math.sqrt(tmp * this.sIndexMapped[e][m]);
+
+          if (this.sMapped[e][m] === 0) {
+            gain[e][m] = Math.sqrt(this.eMapped[e][m] / ((1.0 + eCurr[e][m]) * (1.0 + this.qMapped[e][m] * delta)));
+          } else {
+            gain[e][m] = Math.sqrt(this.eMapped[e][m] * this.qMapped[e][m] / ((1.0 + eCurr[e][m]) * (1.0 + this.qMapped[e][m])));
+          }
+        }
+      
+        sum0 = sum1 = 0.0;
+        for (m = fLim[k] - kx; m < fLim[k + 1] - kx; m++) {
+          sum0 += this.eMapped[e][m];
+          sum1 += eCurr[e][m];
+        }
+      
+        gMax = LIMITER_GAINS[limGain] * Math.sqrt((EPSILON_0 + sum0) / (EPSILON_0 + sum1));
+        gMax = Math.min(MAX_GAIN, gMax);
+        // console.log(gMax, limGain, LIMITER_GAINS[limGain], EPSILON_0, sum0, sum1)
+      
+        for (m = fLim[k] - kx; m < fLim[k + 1] - kx; m++) {
+          let qmMax = Qm[e][m] * gMax / gain[e][m];
+          Qm[e][m] = Math.min(Qm[e][m], qmMax);
+          gain[e][m] = Math.min(gain[e][m], gMax);
+        }
+      
+        sum0 = sum1 = 0.0;
+        for (m = fLim[k] - kx; m < fLim[k + 1] - kx; m++) {
+          sum0 += this.eMapped[e][m];
+          sum1 += eCurr[e][m] * gain[e][m] * gain[e][m]
+                + Sm[e][m] * Sm[e][m]
+                + ((delta && !Sm[e][m]) ? 1 : 0) * Qm[e][m] * Qm[e][m];
+        }
+      
+        let gainBoost = Math.sqrt((EPSILON_0 + sum0) / (EPSILON_0 + sum1));
+        gainBoost = Math.min(MAX_BOOST, gainBoost);
+        for (m = fLim[k] - kx; m < fLim[k + 1] - kx; m++) {
+          gain[e][m] *= gainBoost;
+          Qm[e][m] *= gainBoost;
+          Sm[e][m] *= gainBoost;
+          // if (isNaN(gain[e][m])) {
+            // console.log(gainBoost, sum0, sum1)
+          // }
+        }
+      }
     }
   }
+  
+  // assembling HF signals (4.6.18.7.5)
+  assembleSignals(header, tables, cd, Xhigh, Y) {
+    let reset = header.reset;
+    let hSL = header.smoothingMode ? 0 : 4;
+    let M = tables.m
+    let le = cd.envCount;
+    let lePrev = cd.envCountPrev;
+    let te = cd.te;
+    let la = cd.la;
+    let laPrev = cd.laPrevious === cd.envCountPrev ? 0 : -1;
+    let kx = tables.kx;
+    let noiseIndex = reset ? 0 : cd.noiseIndex;
+    let sineIndex = cd.sineIndex;
 
-  cd.noiseIndex = noiseIndex;
-  cd.sineIndex = sineIndex;
+    let gTmp = cd.gTmp;
+    let qTmp = cd.qTmp;
+
+    let e, i, m, j;
+
+    // save previous values
+    if (reset) {
+      for (i = 0; i < hSL; i++) {
+        gTmp[i + 2 * te[0]].set(this.gain[0].subarray(0, M));
+        qTmp[i + 2 * te[0]].set(this.Qm[0].subarray(0, M));
+      }
+    } else if (hSL !== 0) {
+      for (i = 0; i < 4; i++) {
+        gTmp[i + 2 * te[0]].set(gTmp[i + 2 * cd.tePrevious]);
+        qTmp[i + 2 * te[0]].set(qTmp[i + 2 * cd.tePrevious]);
+      }
+    }
+  
+    for (e = 0; e < le; e++) {
+      for (i = 2 * te[e]; i < 2 * te[e + 1]; i++) {
+        gTmp[hSL + i].set(this.gain[e].subarray(0, M));
+        qTmp[hSL + i].set(this.Qm[e].subarray(0, M));
+      }
+    }
+
+    // calculate new
+    let gFilt, qFilt;
+
+    for (e = 0; e < le; e++) {
+      for (i = RATE * te[e]; i < RATE * te[e + 1]; i++) {
+        if (hSL !== 0 && e !== la && e != laPrev) {
+          for (m = 0; m < M; m++) {
+            let idx1 = i + hSL;
+            gFilt = 0.0;
+            for (j = 0; j <= hSL; j++) {
+              gFilt += gTmp[idx1 - j][m] * SMOOTHING_FACTORS[j];
+            }
+            Y[i][m + kx][0] = Xhigh[m + kx][i + T_HF_ADJ][0] * gFilt;
+            Y[i][m + kx][1] = Xhigh[m + kx][i + T_HF_ADJ][1] * gFilt;
+          }
+        } else {
+          for (m = 0; m < M; m++) {
+            gFilt = gTmp[i + hSL][m];
+            Y[i][m + kx][0] = Xhigh[m + kx][i + T_HF_ADJ][0] * gFilt;
+            Y[i][m + kx][1] = Xhigh[m + kx][i + T_HF_ADJ][1] * gFilt;
+          }
+        }
+
+        if (e !== la && e !== laPrev) {
+          let phiSign = (1 - 2 * (kx & 1));
+        
+          for (m = 0; m < M; m++) {
+            if (this.Sm[e][m] !== 0) {
+              Y[i][m + kx][0] += this.Sm[e][m] * PHI[0][sineIndex];
+              Y[i][m + kx][1] += this.Sm[e][m] * (PHI[1][sineIndex] * phiSign);
+            } else {
+              if (hSL !== 0) {
+                let idx1 = i + hSL;
+                qFilt = 0.0;
+                for (j = 0; j <= hSL; j++) {
+                  qFilt += qTmp[idx1 - j][m] * SMOOTHING_FACTORS[j];
+                }
+              } else {
+                qFilt = qTmp[i][m];
+              }
+              Y[i][m + kx][0] += qFilt * NOISE_TABLE[noiseIndex][0];
+              Y[i][m + kx][1] += qFilt * NOISE_TABLE[noiseIndex][1];
+            }
+            phiSign = -phiSign;
+          }
+        } else {
+          let phiSign = (1 - 2 * (kx & 1));
+          for (m = 0; m < M; m++) {
+            Y[i][m + kx][0] += this.Sm[e][m] * PHI[0][sineIndex];
+            Y[i][m + kx][1] += this.Sm[e][m] * (PHI[1][sineIndex] * phiSign);
+            phiSign = -phiSign;
+          
+            if (isNaN(Y[i][m + kx][0]) || isNaN(Y[i][m + kx][1])) {
+              console.log(this.Sm[e][m], PHI[0][sineIndex]);
+            }
+          }
+        }
+      
+        noiseIndex = (noiseIndex + 1) & 0x1ff;
+        sineIndex = (sineIndex + 1) & 3;
+      }
+    }
+
+    cd.noiseIndex = noiseIndex;
+    cd.sineIndex = sineIndex;
+  }
 }
 
 const NOISE_TABLE = [
