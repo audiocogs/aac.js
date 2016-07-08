@@ -1,14 +1,10 @@
 import * as HuffmanTables from './HuffmanTables';
-import {makeArray} from './utils';
-import {TIME_SLOTS_RATE} from './constants';
+import {TIME_SLOTS, RATE, TIME_SLOTS_RATE, MAX_BANDS} from './constants';
 
 const MAX_ENV_COUNT = 5;
 const MAX_NQ = 5;
 const MAX_NOISE_COUNT = 2;
-const MAX_BANDS = 64;
 const MAX_CHIRP_FACTORS = 5;
-
-const TIME_SLOTS = 16; // TODO: 15 for 960-sample frames
 
 // frame classes
 const FIXFIX = 0;
@@ -16,14 +12,8 @@ const FIXVAR = 1;
 const VARFIX = 2;
 const VARVAR = 3;
 
-const HIGH = 1;
-const LOW = 0;
-
-//CEIL_LOG[i] = Math.ceil(Math.log(i+1)/Math.log(2))
+// CEIL_LOG[i] = Math.ceil(Math.log(i+1)/Math.log(2))
 const CEIL_LOG2 = new Uint8Array([0, 1, 2, 2, 3, 3]);
-const MAX_LTEMP = 6;
-
-const RATE = 2;
 
 export default class ChannelData {
   constructor() {
@@ -34,15 +24,15 @@ export default class ChannelData {
     this.dfEnv = new Uint8Array(MAX_ENV_COUNT);
     this.dfNoise = new Uint8Array(MAX_NOISE_COUNT);
 
-    this.envelopeSFQ = makeArray([MAX_ENV_COUNT, MAX_BANDS], Uint8Array);
-    this.envelopeSFQPrevious = new Uint8Array(MAX_BANDS);
-    this.envelopeSF = makeArray([MAX_ENV_COUNT, MAX_BANDS]);
+    // previous is stored in envelopeSFQ[0]
+    this.envelopeSFQ = new Uint8Array((MAX_ENV_COUNT + 1) * MAX_BANDS);
+    this.envelopeSF = new Float32Array(MAX_ENV_COUNT * MAX_BANDS);
     this.te = new Uint8Array(MAX_ENV_COUNT + 1);
     this.tePrevious = 0;
 
-    this.noiseFloorDataQ = makeArray([MAX_NOISE_COUNT, MAX_BANDS], Uint8Array);
-    this.noiseFDPrevious = new Float32Array(MAX_BANDS);
-    this.noiseFloorData = makeArray([MAX_NOISE_COUNT, MAX_BANDS]);
+    // previous is stored in noiseFloorDataQ[0]
+    this.noiseFloorDataQ = new Uint8Array((MAX_NOISE_COUNT + 1) * MAX_BANDS);
+    this.noiseFloorData = new Float32Array(MAX_NOISE_COUNT * MAX_BANDS);
     this.tq = new Uint8Array(MAX_NOISE_COUNT + 1);
 
     this.sinusoidals = new Uint8Array(MAX_BANDS);
@@ -51,9 +41,8 @@ export default class ChannelData {
     this.bwArray = new Float32Array(MAX_CHIRP_FACTORS);
 
     this.lTemp = 0;
-    // TODO: check sizes!
-    this.gTmp = makeArray([42, 48]);
-    this.qTmp = makeArray([42, 48]);
+    this.gTmp = new Float32Array(42 * 48);
+    this.qTmp = new Float32Array(42 * 48);
     
     // grid
     this.ampRes = 0;
@@ -64,10 +53,6 @@ export default class ChannelData {
     this.pointer = 0;
     this.la = 0;
     this.laPrevious = 0;
-    
-    this.W = makeArray([2, TIME_SLOTS_RATE, TIME_SLOTS_RATE, 2]);
-    this.Y = makeArray([2, 38 + MAX_LTEMP, 64, 2]);
-    this.Ypos = 0;
     
     this.noiseIndex = 0;
     this.sineIndex = 0;
@@ -254,56 +239,55 @@ export default class ChannelData {
     // read delta coded huffman data
     let envBands = tables.n;
     let odd = envBands[1] & 1;
+    let envelopeSFQ[6][48] = this.envelopeSFQ;
 
     let j, k, frPrev;
-    let prev;
     for (let i = 0; i < this.envCount; i++) {
-      prev = i === 0 ? this.envelopeSFQPrevious : this.envelopeSFQ[i - 1];
       frPrev = i === 0 ? this.freqResPrevious : this.freqRes[i - 1];
 
       if (this.dfEnv[i]) {
         if (this.freqRes[i] === frPrev) {
           for (j = 0; j < envBands[this.freqRes[i]]; j++) {
-            this.envelopeSFQ[i][j] = prev[j] + ((this.decodeHuffman(stream, tHuff) - tLav) << delta);
-            if (this.envelopeSFQ[i][j] > 127) {
-              console.log("OUT OF BOUNDS", this.envelopeSFQ[i][j], i, prev[j], delta, tLav)
+            envelopeSFQ[i + 1][j] = envelopeSFQ[i][j] + ((this.decodeHuffman(stream, tHuff) - tLav) << delta);
+            if (envelopeSFQ[i + 1][j] > 127) {
+              console.log("OUT OF BOUNDS", envelopeSFQ[i + 1][j], i, envelopeSFQ[i][j], delta, tLav)
             }
           }
         } else if (this.freqRes[i] !== 0) {
           for (j = 0; j < envBands[this.freqRes[i]]; j++) {
             k = (j + odd) >> 1; //fLow[k] <= fHigh[j] < fLow[k + 1]
-            this.envelopeSFQ[i][j] = prev[k] + ((this.decodeHuffman(stream, tHuff) - tLav) << delta);
-            if (this.envelopeSFQ[i][j] > 127) {
-              console.log("OUT OF BOUNDS 2", this.envelopeSFQ[i][j], i, k, prev[k], delta, tLav)
+            envelopeSFQ[i + 1][j] = envelopeSFQ[i][k] + ((this.decodeHuffman(stream, tHuff) - tLav) << delta);
+            if (envelopeSFQ[i + 1][j] > 127) {
+              console.log("OUT OF BOUNDS 2", envelopeSFQ[i + 1][j], i, k, envelopeSFQ[i][k], delta, tLav)
             }
             
           }
         } else {
           for (j = 0; j < envBands[this.freqRes[i]]; j++) {
             k = j !== 0 ? (2 * j - odd) : 0; //fHigh[k] == fLow[j]
-            this.envelopeSFQ[i][j] = prev[k] + ((this.decodeHuffman(stream, tHuff) - tLav) << delta);
-            if (this.envelopeSFQ[i][j] > 127) {
-              console.log("OUT OF BOUNDS 3", this.envelopeSFQ[i][j], i, k, prev[k], delta, tLav)
+            envelopeSFQ[i + 1][j] = envelopeSFQ[i][k] + ((this.decodeHuffman(stream, tHuff) - tLav) << delta);
+            if (envelopeSFQ[i + 1][j] > 127) {
+              console.log("OUT OF BOUNDS 3", envelopeSFQ[i + 1][j], i, k, envelopeSFQ[i][k], delta, tLav)
             }
           }
         }
       } else {
-        this.envelopeSFQ[i][0] = stream.read(bits) << delta;
-        if (this.envelopeSFQ[i][0] > 127) {
-          console.log("OUT OF BOUNDS 5", this.envelopeSFQ[i][0], delta)
+        envelopeSFQ[i + 1][0] = stream.read(bits) << delta;
+        if (envelopeSFQ[i + 1][0] > 127) {
+          console.log("OUT OF BOUNDS 5", envelopeSFQ[i + 1][0], delta)
         }
         
         for (j = 1; j < envBands[this.freqRes[i]]; j++) {
-          this.envelopeSFQ[i][j] = this.envelopeSFQ[i][j - 1] + ((this.decodeHuffman(stream, fHuff) - fLav) << delta);
-          if (this.envelopeSFQ[i][j] > 127) {
-            console.log("OUT OF BOUNDS 4", this.envelopeSFQ[i][j], this.envelopeSFQ[i][j - 1], delta, tLav)
+          envelopeSFQ[i + 1][j] = envelopeSFQ[i + 1][j - 1] + ((this.decodeHuffman(stream, fHuff) - fLav) << delta);
+          if (envelopeSFQ[i + 1][j] > 127) {
+            console.log("OUT OF BOUNDS 4", envelopeSFQ[i + 1][j], envelopeSFQ[i + 1][j - 1], delta, tLav)
           }
         }
       }
     }
 
     // save for next frame
-    this.envelopeSFQPrevious.set(this.envelopeSFQ[this.envCount - 1])
+    envelopeSFQ[0].set(envelopeSFQ[this.envCount]);
   }
   
   decodeHuffman(stream, table) {
@@ -342,30 +326,29 @@ export default class ChannelData {
 
     // read huffman data: i=noise, j=band
     let noiseBands = tables.nq;
+    let noiseFloorDataQ[3][64] = this.noiseFloorDataQ;
 
     let j;
-    let prev;
     for (let i = 0; i < this.noiseCount; i++) {
       if (this.dfNoise[i]) {
-        prev = i === 0 ? this.noiseFDPrevious : this.noiseFloorDataQ[i - 1];
         for (j = 0; j < noiseBands; j++) {
-          this.noiseFloorDataQ[i][j] = prev[j] + ((this.decodeHuffman(stream, tHuff) - tLav) << delta);
+          noiseFloorDataQ[i + 1][j] = noiseFloorDataQ[i][j] + ((this.decodeHuffman(stream, tHuff) - tLav) << delta);
         }
       } else {
-        this.noiseFloorDataQ[i][0] = stream.read(5) << delta;
+        noiseFloorDataQ[i + 1][0] = stream.read(5) << delta;
         for (j = 1; j < noiseBands; j++) {
-          this.noiseFloorDataQ[i][j] = this.noiseFloorDataQ[i][j - 1] + ((this.decodeHuffman(stream, fHuff) - fLav) << delta);
+          noiseFloorDataQ[i + 1][j] = noiseFloorDataQ[i + 1][j - 1] + ((this.decodeHuffman(stream, fHuff) - fLav) << delta);
         }
       }
     }
 
     //save for next frame
-    this.noiseFDPrevious.set(this.noiseFloorDataQ[this.noiseCount - 1]);
+    noiseFloorDataQ[0].set(noiseFloorDataQ[this.noiseCount]);
   }
   
   decodeSinusoidal(stream, header, tables) {
     if (this.sinusoidalsPresent = stream.read(1)) {
-      for (let i = 0; i < tables.n[HIGH]; i++) {
+      for (let i = 0; i < tables.n[1]; i++) {
         this.sinusoidals[i] = stream.read(1);
       }
     } else {

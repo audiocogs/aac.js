@@ -1,5 +1,4 @@
-import {HIGH, RATE, T_HF_ADJ} from './constants';
-import {makeArray} from './utils';
+import {RATE, T_HF_ADJ} from './constants';
 
 const LIMITER_GAINS = [0.70795, 1.0, 1.41254, 10000000000];
 const EPSILON = 1.0;
@@ -20,21 +19,21 @@ const MAX_GAIN = 100000;
 
 export default class HFAdjuster {
   constructor() {
-    this.eMapped = makeArray([7, 48]);
-    this.qMapped = makeArray([7, 48]);
-    this.sIndexMapped = makeArray([7, 48], Uint8Array);
-    this.sMapped = makeArray([7, 48], Uint8Array);
-    this.eCurr = makeArray([7, 48]);
-    this.Qm = makeArray([7, 48]);
-    this.Sm = makeArray([7, 48]);
-    this.gain = makeArray([7, 48]);
+    this.eMapped = new Float32Array(7 * 48);
+    this.qMapped = new Float32Array(7 * 48);
+    this.sIndexMapped = new Uint8Array(7 * 48);
+    this.sMapped = new Uint8Array(7 * 48);
+    this.eCurr = new Float32Array(7 * 48);
+    this.Qm = new Float32Array(7 * 48);
+    this.Sm = new Float32Array(7 * 48);
+    this.gain = new Float32Array(7 * 48);
   }
   
-  process(header, tables, cd, Xhigh, Y) {
+  process(header, tables, cd, Xhigh, Y, ch) {
     this.map(tables, cd);
     this.estimateEnvelopes(header, tables, cd, Xhigh);
     this.calculateGain(header, tables, cd);
-    this.assembleSignals(header, tables, cd, Xhigh, Y);
+    this.assembleSignals(header, tables, cd, Xhigh, Y, ch);
   }
   
   // mapping of dequantized values (4.6.18.7.2)
@@ -42,8 +41,8 @@ export default class HFAdjuster {
     // parameter from FrequencyTables
     let kx = tables.kx;
     let noiseTable = tables.fNoise;
-    let fHigh = tables.fTable[HIGH];
-    let nHigh = tables.n[HIGH];
+    let fHigh = tables.fTable[1];
+    let nHigh = tables.n[1];
     let M = tables.m;
     let nq = tables.nq;
 
@@ -54,14 +53,14 @@ export default class HFAdjuster {
     let la = cd.la;
 
     //input and output arrays
-    let eOrig = cd.envelopeSF;
-    let eMapped = this.eMapped;
-    let qOrig = cd.noiseFloorData;
-    let qMapped = this.qMapped;
+    let eOrig[5][48] = cd.envelopeSF;
+    let eMapped[7][48] = this.eMapped;
+    let qOrig[2][64] = cd.noiseFloorData;
+    let qMapped[7][48] = this.qMapped;
     let sinusoidals = cd.sinusoidals;
     let sIndexMappedPrev = cd.sIndexMappedPrevious;
-    let sIndexMapped = this.sIndexMapped;
-    let sMapped = this.sMapped;
+    let sIndexMapped[7][48] = this.sIndexMapped;
+    let sMapped[7][48] = this.sMapped;
 
     // tmp integer
     let fr, maxI, k, i, m;
@@ -118,12 +117,12 @@ export default class HFAdjuster {
   }
   
   // envelope estimation (4.6.18.7.3)
-  estimateEnvelopes(header, tables, cd, Xhigh) {
+  estimateEnvelopes(header, tables, cd, Xhigh[64][40][2]) {
     let te = cd.te;
     let M = tables.m;
     let kx = tables.kx;
     let le = cd.envCount;
-    let eCurr = this.eCurr;
+    let eCurr[7][48] = this.eCurr;
 
     let sum;
     let e, m, i, iLow, iHigh;
@@ -193,10 +192,14 @@ export default class HFAdjuster {
     let le = cd.envCount;
 
     // output arrays
-    let Qm = this.Qm;
-    let Sm = this.Sm;
-    let gain = this.gain;
-    let eCurr = this.eCurr;
+    let Qm[7][48] = this.Qm;
+    let Sm[7][48] = this.Sm;
+    let gain[7][48] = this.gain;
+    let eCurr[7][48] = this.eCurr;
+    let eMapped[7][48] = this.eMapped;
+    let sMapped[7][48] = this.sMapped;
+    let qMapped[7][48] = this.qMapped;
+    let sIndexMapped[7][48] = this.sIndexMapped;
 
     let delta, delta2;
     let m, k, i;
@@ -212,20 +215,20 @@ export default class HFAdjuster {
       
         // level of additional HF components + gain
         for (m = fLim[k] - kx; m < fLim[k + 1] - kx; m++) {
-          tmp = this.eMapped[e][m] / (1.0 + this.qMapped[e][m]);
-          Qm[e][m] = Math.sqrt(tmp * this.qMapped[e][m]);
-          Sm[e][m] = Math.sqrt(tmp * this.sIndexMapped[e][m]);
+          tmp = eMapped[e][m] / (1.0 + qMapped[e][m]);
+          Qm[e][m] = Math.sqrt(tmp * qMapped[e][m]);
+          Sm[e][m] = Math.sqrt(tmp * sIndexMapped[e][m]);
 
-          if (this.sMapped[e][m] === 0) {
-            gain[e][m] = Math.sqrt(this.eMapped[e][m] / ((1.0 + eCurr[e][m]) * (1.0 + this.qMapped[e][m] * delta)));
+          if (sMapped[e][m] === 0) {
+            gain[e][m] = Math.sqrt(eMapped[e][m] / ((1.0 + eCurr[e][m]) * (1.0 + qMapped[e][m] * delta)));
           } else {
-            gain[e][m] = Math.sqrt(this.eMapped[e][m] * this.qMapped[e][m] / ((1.0 + eCurr[e][m]) * (1.0 + this.qMapped[e][m])));
+            gain[e][m] = Math.sqrt(eMapped[e][m] * qMapped[e][m] / ((1.0 + eCurr[e][m]) * (1.0 + qMapped[e][m])));
           }
         }
       
         sum0 = sum1 = 0.0;
         for (m = fLim[k] - kx; m < fLim[k + 1] - kx; m++) {
-          sum0 += this.eMapped[e][m];
+          sum0 += eMapped[e][m];
           sum1 += eCurr[e][m];
         }
       
@@ -241,7 +244,7 @@ export default class HFAdjuster {
       
         sum0 = sum1 = 0.0;
         for (m = fLim[k] - kx; m < fLim[k + 1] - kx; m++) {
-          sum0 += this.eMapped[e][m];
+          sum0 += eMapped[e][m];
           sum1 += eCurr[e][m] * gain[e][m] * gain[e][m]
                 + Sm[e][m] * Sm[e][m]
                 + ((delta && !Sm[e][m]) ? 1 : 0) * Qm[e][m] * Qm[e][m];
@@ -262,7 +265,7 @@ export default class HFAdjuster {
   }
   
   // assembling HF signals (4.6.18.7.5)
-  assembleSignals(header, tables, cd, Xhigh, Y) {
+  assembleSignals(header, tables, cd, Xhigh[64][40][2], Y[2][38][64][2], ch) {
     let reset = header.reset;
     let hSL = header.smoothingMode ? 0 : 4;
     let M = tables.m
@@ -275,16 +278,19 @@ export default class HFAdjuster {
     let noiseIndex = reset ? 0 : cd.noiseIndex;
     let sineIndex = cd.sineIndex;
 
-    let gTmp = cd.gTmp;
-    let qTmp = cd.qTmp;
+    let gTmp[42][48] = cd.gTmp;
+    let qTmp[42][48] = cd.qTmp;
+    let Sm[7][48] = this.Sm;
+    let Qm[7][48] = this.Qm;
+    let gain[7][48] = this.gain;
 
     let e, i, m, j;
 
     // save previous values
     if (reset) {
       for (i = 0; i < hSL; i++) {
-        gTmp[i + 2 * te[0]].set(this.gain[0].subarray(0, M));
-        qTmp[i + 2 * te[0]].set(this.Qm[0].subarray(0, M));
+        gTmp[i + 2 * te[0]].set(gain.subarray(0, M));
+        qTmp[i + 2 * te[0]].set(Qm.subarray(0, M));
       }
     } else if (hSL !== 0) {
       for (i = 0; i < 4; i++) {
@@ -295,8 +301,8 @@ export default class HFAdjuster {
   
     for (e = 0; e < le; e++) {
       for (i = 2 * te[e]; i < 2 * te[e + 1]; i++) {
-        gTmp[hSL + i].set(this.gain[e].subarray(0, M));
-        qTmp[hSL + i].set(this.Qm[e].subarray(0, M));
+        gTmp[hSL + i].set(gain[e].subarray(0, M));
+        qTmp[hSL + i].set(Qm.subarray(0, M));
       }
     }
 
@@ -312,14 +318,14 @@ export default class HFAdjuster {
             for (j = 0; j <= hSL; j++) {
               gFilt += gTmp[idx1 - j][m] * SMOOTHING_FACTORS[j];
             }
-            Y[i][m + kx][0] = Xhigh[m + kx][i + T_HF_ADJ][0] * gFilt;
-            Y[i][m + kx][1] = Xhigh[m + kx][i + T_HF_ADJ][1] * gFilt;
+            Y[ch][i][m + kx][0] = Xhigh[m + kx][i + T_HF_ADJ][0] * gFilt;
+            Y[ch][i][m + kx][1] = Xhigh[m + kx][i + T_HF_ADJ][1] * gFilt;
           }
         } else {
           for (m = 0; m < M; m++) {
             gFilt = gTmp[i + hSL][m];
-            Y[i][m + kx][0] = Xhigh[m + kx][i + T_HF_ADJ][0] * gFilt;
-            Y[i][m + kx][1] = Xhigh[m + kx][i + T_HF_ADJ][1] * gFilt;
+            Y[ch][i][m + kx][0] = Xhigh[m + kx][i + T_HF_ADJ][0] * gFilt;
+            Y[ch][i][m + kx][1] = Xhigh[m + kx][i + T_HF_ADJ][1] * gFilt;
           }
         }
 
@@ -327,9 +333,9 @@ export default class HFAdjuster {
           let phiSign = (1 - 2 * (kx & 1));
         
           for (m = 0; m < M; m++) {
-            if (this.Sm[e][m] !== 0) {
-              Y[i][m + kx][0] += this.Sm[e][m] * PHI[0][sineIndex];
-              Y[i][m + kx][1] += this.Sm[e][m] * (PHI[1][sineIndex] * phiSign);
+            if (Sm[e][m] !== 0) {
+              Y[ch][i][m + kx][0] += Sm[e][m] * PHI[0][sineIndex];
+              Y[ch][i][m + kx][1] += Sm[e][m] * (PHI[1][sineIndex] * phiSign);
             } else {
               if (hSL !== 0) {
                 let idx1 = i + hSL;
@@ -340,16 +346,16 @@ export default class HFAdjuster {
               } else {
                 qFilt = qTmp[i][m];
               }
-              Y[i][m + kx][0] += qFilt * NOISE_TABLE[noiseIndex][0];
-              Y[i][m + kx][1] += qFilt * NOISE_TABLE[noiseIndex][1];
+              Y[ch][i][m + kx][0] += qFilt * NOISE_TABLE[noiseIndex][0];
+              Y[ch][i][m + kx][1] += qFilt * NOISE_TABLE[noiseIndex][1];
             }
             phiSign = -phiSign;
           }
         } else {
           let phiSign = (1 - 2 * (kx & 1));
           for (m = 0; m < M; m++) {
-            Y[i][m + kx][0] += this.Sm[e][m] * PHI[0][sineIndex];
-            Y[i][m + kx][1] += this.Sm[e][m] * (PHI[1][sineIndex] * phiSign);
+            Y[ch][i][m + kx][0] += Sm[e][m] * PHI[0][sineIndex];
+            Y[ch][i][m + kx][1] += Sm[e][m] * (PHI[1][sineIndex] * phiSign);
             phiSign = -phiSign;
           
             if (isNaN(Y[i][m + kx][0]) || isNaN(Y[i][m + kx][1])) {

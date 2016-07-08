@@ -1,4 +1,3 @@
-import {makeArray} from './utils';
 import {RATE, T_HF_ADJ} from './constants';
 
 const RELAX_COEF = 1.000001;
@@ -15,21 +14,21 @@ const CHIRP_MIN = 0.015625;
 
 export default class HFGenerator {
   constructor() {
-    this.alpha0 = makeArray([64, 2]);
-    this.alpha1 = makeArray([64, 2]);
+    this.alpha0 = new Float32Array(64 * 2);
+    this.alpha1 = new Float32Array(64 * 2);
     this.alpha = new Float32Array(4);
-    this.phi = makeArray([3, 2, 2]);
+    this.phi = new Float32Array(3 * 2 * 2);
   }
   
   // in: 32x40 complex Xlow, out: 32x40 complex Xhigh
-  process(tables, cd, Xlow, Xhigh) {
+  process(tables, cd, Xlow[32][40][2], Xhigh[64][40][2]) {
     // calculate chirp factors
     let bwArray = this.calculateChirpFactors(tables, cd);
 
     // calculate inverse filter coefficients for bands 0-k0
     let k0 = tables.k0;
-    let alpha0 = this.alpha0;
-    let alpha1 = this.alpha1;
+    let alpha0[64][2] = this.alpha0;
+    let alpha1[64][2] = this.alpha1;
     this.calculateIFCoefs(tables, alpha0, alpha1, Xlow);
 
     // HF generation
@@ -88,7 +87,7 @@ export default class HFGenerator {
 
     // fill remaining with zero
     while (k < m + kx) {
-      for (let j = 0; j < Xhigh[k].length; j++) {
+      for (let j = 0; j < 40; j++) {
         Xhigh[k][j][0] = 0;
         Xhigh[k][j][1] = 0;
       }
@@ -118,15 +117,15 @@ export default class HFGenerator {
   }
 
   // calculates inverse filter coefficients for bands 0-k0 (4.6.18.6.2)
-  calculateIFCoefs(tables, alpha0, alpha1, Xlow) {
+  calculateIFCoefs(tables, alpha0[64][2], alpha1[64][2], Xlow) {
     let k0 = tables.k0;
     let tmp0, tmp1;
 
-    let phi = this.phi;
+    let phi[3][2][2] = this.phi;
     let d;
     for (let k = 0; k < k0; k++) {
       //get covariance matrix
-      this.getCovarianceMatrix(Xlow[k], phi);
+      this.getCovarianceMatrix(Xlow, k, phi);
 
       // d(k)
       d = phi[2][1][0] * phi[1][0][0] - (phi[1][1][0] * phi[1][1][0] + phi[1][1][1] * phi[1][1][1]) / RELAX_COEF;
@@ -164,24 +163,24 @@ export default class HFGenerator {
   }
 
   // calculates covariance matrix (4.6.18.6.2)
-  getCovarianceMatrix(x, phi) {
-    let real_sum2 = x[0][0] * x[2][0] + x[0][1] * x[2][1];
-    let imag_sum2 = x[0][0] * x[2][1] - x[0][1] * x[2][0];
+  getCovarianceMatrix(x[32][40][2], k, phi[3][2][2]) {
+    let real_sum2 = x[k][0][0] * x[k][2][0] + x[k][0][1] * x[k][2][1];
+    let imag_sum2 = x[k][0][0] * x[k][2][1] - x[k][0][1] * x[k][2][0];
     let real_sum1 = 0.0, imag_sum1 = 0.0, real_sum0 = 0.0;
     for (let i = 1; i < 38; i++) {
-      real_sum0 += x[i][0] * x[i    ][0] + x[i][1] * x[i    ][1];
-      real_sum1 += x[i][0] * x[i + 1][0] + x[i][1] * x[i + 1][1];
-      imag_sum1 += x[i][0] * x[i + 1][1] - x[i][1] * x[i + 1][0];
-      real_sum2 += x[i][0] * x[i + 2][0] + x[i][1] * x[i + 2][1];
-      imag_sum2 += x[i][0] * x[i + 2][1] - x[i][1] * x[i + 2][0];
+      real_sum0 += x[k][i][0] * x[k][i    ][0] + x[k][i][1] * x[k][i    ][1];
+      real_sum1 += x[k][i][0] * x[k][i + 1][0] + x[k][i][1] * x[k][i + 1][1];
+      imag_sum1 += x[k][i][0] * x[k][i + 1][1] - x[k][i][1] * x[k][i + 1][0];
+      real_sum2 += x[k][i][0] * x[k][i + 2][0] + x[k][i][1] * x[k][i + 2][1];
+      imag_sum2 += x[k][i][0] * x[k][i + 2][1] - x[k][i][1] * x[k][i + 2][0];
     }
     phi[2 - 2][1][0] = real_sum2;
     phi[2 - 2][1][1] = imag_sum2;
-    phi[2    ][1][0] = real_sum0 + x[ 0][0] * x[ 0][0] + x[ 0][1] * x[ 0][1];
-    phi[1    ][0][0] = real_sum0 + x[38][0] * x[38][0] + x[38][1] * x[38][1];
-    phi[2 - 1][1][0] = real_sum1 + x[ 0][0] * x[ 1][0] + x[ 0][1] * x[ 1][1];
-    phi[2 - 1][1][1] = imag_sum1 + x[ 0][0] * x[ 1][1] - x[ 0][1] * x[ 1][0];
-    phi[0    ][0][0] = real_sum1 + x[38][0] * x[39][0] + x[38][1] * x[39][1];
-    phi[0    ][0][1] = imag_sum1 + x[38][0] * x[39][1] - x[38][1] * x[39][0];
+    phi[2    ][1][0] = real_sum0 + x[k][ 0][0] * x[k][ 0][0] + x[k][ 0][1] * x[k][ 0][1];
+    phi[1    ][0][0] = real_sum0 + x[k][38][0] * x[k][38][0] + x[k][38][1] * x[k][38][1];
+    phi[2 - 1][1][0] = real_sum1 + x[k][ 0][0] * x[k][ 1][0] + x[k][ 0][1] * x[k][ 1][1];
+    phi[2 - 1][1][1] = imag_sum1 + x[k][ 0][0] * x[k][ 1][1] - x[k][ 0][1] * x[k][ 1][0];
+    phi[0    ][0][0] = real_sum1 + x[k][38][0] * x[k][39][0] + x[k][38][1] * x[k][39][1];
+    phi[0    ][0][1] = imag_sum1 + x[k][38][0] * x[k][39][1] - x[k][38][1] * x[k][39][0];
   }
 }

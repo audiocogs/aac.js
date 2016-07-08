@@ -1,10 +1,8 @@
-var tables = require('../tables');
+import tables from '../tables';
+import {MAX_BANDS} from './constants';
 
 const MAX_PATCHES = 6;
-const MAX_BANDS = 64;
 const LOG2 = Math.log(2);
-const HIGH = 1;
-const LOW = 0;
 
 const MFT_START_MIN = new Uint8Array([7, 7, 10, 11, 12, 16, 16, 17, 24]);
 const MFT_STOP_MIN = new Uint8Array([13, 15, 20, 21, 23, 32, 32, 35, 48]);
@@ -204,25 +202,25 @@ export default class FrequencyTables {
   
   calculateFrequencyTables(header) {
     let xover = header.xOverBand;
-    this.n[HIGH] = this.nMaster - xover;
-    this.n[LOW] = (this.n[HIGH] + 1) >> 1;
-    this.fTable[HIGH] = new Int32Array(this.n[HIGH] + 1);
-    this.fTable[HIGH].set(this.mft, xover);
+    this.n[1] = this.nMaster - xover;
+    this.n[0] = (this.n[1] + 1) >> 1;
+    this.fTable[1] = new Int32Array(this.n[1] + 1);
+    this.fTable[1].set(this.mft, xover);
 
     this.kxPrev = this.kx;
-    this.kx = this.fTable[HIGH][0];
+    this.kx = this.fTable[1][0];
     this.mPrev = this.m;
-    this.m = this.fTable[HIGH][this.n[HIGH]] - this.kx;
+    this.m = this.fTable[1][this.n[1]] - this.kx;
     
     // check requirements (4.6.18.3.6):
     if (this.kx > 32) throw new Error("SBR: start frequency border out of range: " + this.kx);
     if ((this.kx + this.m) > 64) throw new Error("SBR: stop frequency border out of range: " + (this.kx + this.m));
 
-    this.fTable[LOW] = new Int32Array(this.n[LOW] + 1);
-    this.fTable[LOW][0] = this.fTable[HIGH][0];
-    let div = this.n[HIGH] & 1;
-    for (let i = 1; i <= this.n[LOW]; i++) {
-      this.fTable[LOW][i] = this.fTable[HIGH][2 * i - div];
+    this.fTable[0] = new Int32Array(this.n[0] + 1);
+    this.fTable[0][0] = this.fTable[1][0];
+    let div = this.n[1] & 1;
+    for (let i = 1; i <= this.n[0]; i++) {
+      this.fTable[0][i] = this.fTable[1][2 * i - div];
     }
   }
   
@@ -235,11 +233,11 @@ export default class FrequencyTables {
     if (this.nq > 5) throw new Error("SBR: too many noise floor scalefactors: " + this.nq);
 
     this.fNoise = new Int32Array(this.nq + 1);
-    this.fNoise[0] = this.fTable[LOW][0];
+    this.fNoise[0] = this.fTable[0][0];
     let i = 0;
     for (let k = 1; k <= this.nq; k++) {
-      i += ((this.n[LOW] - i) / (this.nq + 1 - k)) | 0;
-      this.fNoise[k] = this.fTable[LOW][i];
+      i += ((this.n[0] - i) / (this.nq + 1 - k)) | 0;
+      this.fNoise[k] = this.fTable[0][i];
     }
   }
   
@@ -296,7 +294,7 @@ export default class FrequencyTables {
     // calculation of fTableLim (figure 4.40, p.213)
     let bands = header.limiterBands;
     if (bands == 0) {
-      this.fLim = new Int32Array([this.fTable[LOW][0], this.fTable[LOW][this.n[LOW]]]);
+      this.fLim = new Int32Array([this.fTable[0][0], this.fTable[0][this.n[0]]]);
       this.nl = 1;
       this.patchBorders = new Int32Array(0);
     } else {
@@ -308,17 +306,17 @@ export default class FrequencyTables {
         this.patchBorders[i] = this.patchBorders[i - 1] + this.patchSubbands[i - 1];
       }
 
-      let limTable = new Int32Array(this.n[LOW] + this.patchCount);
-      limTable.set(this.fTable[LOW].subarray(0, this.n[LOW] + 1));
+      let limTable = new Int32Array(this.n[0] + this.patchCount);
+      limTable.set(this.fTable[0].subarray(0, this.n[0] + 1));
       if (this.patchCount > 1) {
-        limTable.set(this.patchBorders.subarray(1, this.patchCount), this.n[LOW] + 1);
+        limTable.set(this.patchBorders.subarray(1, this.patchCount), this.n[0] + 1);
       }
       
       limTable.sort();
 
       let inp = 1;
       let out = 0;
-      let lims = this.n[LOW] + this.patchCount - 1;
+      let lims = this.n[0] + this.patchCount - 1;
       while (out < lims) {
         if (limTable[inp] >= limTable[out] * limBandsPerOctaveWarped) {
           limTable[++out] = limTable[inp++];

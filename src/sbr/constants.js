@@ -1,38 +1,9 @@
-// frame classes
-export const FIXFIX = 0;
-export const FIXVAR = 1;
-export const VARFIX = 2;
-export const VARVAR = 3;
-
-// indizes for frequency tables
-export const HIGH = 1;
-export const LOW = 0;
 export const RATE = 2;
-export const TIME_SLOTS = 16; //TODO: 15 for 960-sample frames
-export const TIME_SLOTS_RATE = TIME_SLOTS*RATE;
-export const NOISE_FLOOR_OFFSET = 6;
+export const TIME_SLOTS = 16; // TODO: 15 for 960-sample frames
+export const TIME_SLOTS_RATE = TIME_SLOTS * RATE;
 export const T_HF_GEN = 8;
 export const T_HF_ADJ = 2;
-
-// max values/lengths for arrays
 export const MAX_BANDS = 64;
-export const MAX_ENV_COUNT = 5;
-export const MAX_NOISE_COUNT = 2;
-export const MAX_RELATIVE_BORDERS = 3;
-export const MAX_NQ = 5;
-export const MAX_CHIRP_FACTORS = 5;
-export const MAX_PATCHES = 6;
-export const MAX_LTEMP = 6;
-
-// extension ids
-export const EXTENSION_ID_PS = 2;
-
-// helper export constants
-export const LOG2 = 0.6931471805599453;
-export const PAN_OFFSETS = new Uint8Array([24, 12]);
-
-//CEIL_LOG[i] = Math.ceil(Math.log(i+1)/Math.log(2))
-export const CEIL_LOG2 = new Uint8Array([0, 1, 2, 2, 3, 3]);
 
 export const WINDOW = new Float64Array([
   0.0, -5.525286E-4, -5.617692E-4, -4.947518E-4,
