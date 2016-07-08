@@ -95,7 +95,6 @@ class SBR {
     let coupling = stream.read(1);
     
     if (coupling) {
-      throw new Error('COUPLING')
       this.cd[0].decodeGrid(stream, this.header, this.tables);
       this.cd[1].copyGrid(this.cd[0]);
       this.cd[0].decodeDTDF(stream);
@@ -126,6 +125,59 @@ class SBR {
     
     this.cd[0].decodeSinusoidal(stream, this.header, this.tables);
     this.cd[1].decodeSinusoidal(stream, this.header, this.tables);
+  }
+  
+  dequantCoupled() {
+    // envelopes
+    let a = this.cd[0].ampRes;
+    let panOffset = this.cd[0].ampRes ? 12 : 24;
+    let e0q[6][48] = this.cd[0].envelopeSFQ;
+    let e0[5][48] = this.cd[0].envelopeSF;
+    let e1q[6][48] = this.cd[1].envelopeSFQ;
+    let e1[5][48] = this.cd[1].envelopeSF;
+    let r = this.cd[0].freqRes;
+    let le = this.cd[0].envCount;
+    let n = this.tables.n;
+
+    let f1, f2, f3;
+    for (let l = 0; l < le; l++) {
+      for (let k = 0; k < n[r[l]]; k++) {
+        if (a) {
+          f1 = Math.pow(2, e0q[l + 1][k] + 7);
+          f2 = Math.pow(2, panOffset - e1q[l + 1][k]);
+        } else {
+          f1 = Math.pow(2, (e0q[l + 1][k] >> 1) + 7) * EXP2[e0q[l + 1][k] & 1];
+          f2 = Math.pow(2, (panOffset - e1q[l + 1][k]) >> 1) * EXP2[panOffset - e1q[l + 1][k] & 1];
+        }
+        
+        if (f1 > 1e20) {
+          console.log("DEQUANT OUT OF BOUNDS");
+          f1 = 1;
+        }
+        
+        f3 = f1 / (1.0 + f2);
+        e0[l][k] = f3;
+        e1[l][k] = f3 * f2;
+      }
+    }
+
+    // noise
+    let q0q[3][64] = this.cd[0].noiseFloorDataQ;
+    let q0[2][64] = this.cd[0].noiseFloorData;
+    let q1q[3][64] = this.cd[1].noiseFloorDataQ;
+    let q1[2][64] = this.cd[1].noiseFloorData;
+    let lq = this.cd[0].noiseCount;
+    let nq = this.tables.nq;
+
+    for (let l = 0; l < lq; l++) {
+      for (let k = 0; k < nq; k++) {
+        f1 = Math.pow(2, NOISE_FLOOR_OFFSET - q0q[l + 1][k] + 1);
+        f2 = Math.pow(2, 12 - q1q[l + 1][k]);
+        f3 = f1 / (1 + f2);
+        q0[l][k] = f3;
+        q1[l][k] = f3 * f2;
+      }
+    }
   }
   
   dequantSingle(cd) {
