@@ -18,45 +18,28 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
-var tables = require('./mdct_tables');
 var FFT = require('./fft');
 
 // Modified Discrete Cosine Transform
-function MDCT(length) {
+function MDCT(length, scale) {
     this.N = length;
     this.N2 = length >>> 1;
     this.N4 = length >>> 2;
     this.N8 = length >>> 3;
     
-    switch (length) {
-        case 2048:
-            this.sincos = tables.MDCT_TABLE_2048;
-            break;
-            
-        case 256:
-            this.sincos = tables.MDCT_TABLE_256;
-            break;
-            
-        case 1920:
-            this.sincos = tables.MDCT_TABLE_1920;
-            break;
-            
-        case 240:
-            this.sincos = tables.MDCT_TABLE_240;
-            break;
-            
-        default:
-            throw new Error("unsupported MDCT length: " + length);
+    this.sin = new Float32Array(this.N4);
+    this.cos = new Float32Array(this.N4);
+    
+    let theta = 1.0 / 8.0 + (scale < 0 ? this.N4 : 0);
+    scale = Math.sqrt(Math.abs(scale));
+    for (let i = 0; i < this.N4; i++) {
+      let alpha = 2 * Math.PI * (i + theta) / length;
+      this.sin[i] = -Math.sin(alpha) * scale;
+      this.cos[i] = -Math.cos(alpha) * scale;
     }
     
     this.fft = new FFT(this.N4);
-    
-    this.buf = new Array(this.N4);
-    for (var i = 0; i < this.N4; i++) {
-        this.buf[i] = new Float32Array(2);
-    }
-    
-    this.tmp = new Float32Array(2);
+    this.buf = new Float32Array(this.N4 * 2);
 }
 
 MDCT.prototype.process = function(input, inOffset, output, outOffset) {
@@ -64,26 +47,31 @@ MDCT.prototype.process = function(input, inOffset, output, outOffset) {
     var N2 = this.N2,
         N4 = this.N4,
         N8 = this.N8,
-        buf = this.buf,
+        buf[N4][2] = this.buf,
         tmp = this.tmp,
-        sincos = this.sincos,
+        sin = this.sin,
+        cos = this.cos,
         fft = this.fft;
     
     // pre-IFFT complex multiplication
+    let in1 = inOffset;
+    let in2 = inOffset + N2 - 1;
     for (var k = 0; k < N4; k++) {
-        buf[k][1] = (input[inOffset + 2 * k] * sincos[k][0]) + (input[inOffset + N2 - 1 - 2 * k] * sincos[k][1]);
-        buf[k][0] = (input[inOffset + N2 - 1 - 2 * k] * sincos[k][0]) - (input[inOffset + 2 * k] * sincos[k][1]);
+        buf[k][0] = (input[in2] * cos[k]) - (input[in1] * sin[k]);
+        buf[k][1] = (input[in2] * sin[k]) + (input[in1] * cos[k]);
+        in1 += 2;
+        in2 -= 2;
     }
     
     // complex IFFT, non-scaling
     fft.process(buf, false);
     
     // post-IFFT complex multiplication
-    for (var k = 0; k < N4; k++) {
-        tmp[0] = buf[k][0];
-        tmp[1] = buf[k][1];
-        buf[k][1] = (tmp[1] * sincos[k][0]) + (tmp[0] * sincos[k][1]);
-        buf[k][0] = (tmp[0] * sincos[k][0]) - (tmp[1] * sincos[k][1]);
+    for (let k = 0; k < N4; k++) {
+        let r = buf[k][0];
+        let i = buf[k][1];
+        buf[k][0] = (r * cos[k]) - (i * sin[k]);
+        buf[k][1] = (r * sin[k]) + (i * cos[k]);
     }
     
     // reordering
