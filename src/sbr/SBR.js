@@ -12,7 +12,7 @@ const NOISE_FLOOR_OFFSET = 6;
 const EXTENSION_ID_PS = 2;
 const EXP2 = [1, Math.SQRT2];
 
-class SBR extends PooledObject {
+export default class SBR extends PooledObject {
   constructor() {
     super();
     this.sampleRate = 0;
@@ -338,5 +338,3 @@ class SBR extends PooledObject {
     this.cd[ch].savePreviousData();
   }
 }
-
-module.exports = SBR;

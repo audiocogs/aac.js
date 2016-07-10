@@ -270,11 +270,14 @@ class AACDecoder extends AV.Decoder {
         var channels = this.config.chanConfig;
         var mult = this.config.sbrPresent ? 2 : 1;
         var len = mult * this.config.frameLength;
-        var data = this.data = [];
+        var data = this.data;
         
-        // Initialize channels
-        for (var i = 0; i < channels; i++) {
-            data[i] = new Float32Array(len);
+        // Only reallocate if needed
+        if (!data || data.length !== channels || data[0].length !== len) {
+            data = this.data = [];
+            for (var i = 0; i < channels; i++) {
+                data[i] = new Float32Array(len);
+            }
         }
         
         var channel = 0;
