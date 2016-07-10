@@ -6,16 +6,16 @@ import SynthesisFilterbank from './SynthesisFilterbank';
 import HFGenerator from './HFGenerator';
 import HFAdjuster from './HFAdjuster';
 import {T_HF_GEN, T_HF_ADJ, TIME_SLOTS_RATE} from './constants';
+import PooledObject from '../PooledObject';
 
 const NOISE_FLOOR_OFFSET = 6;
 const EXTENSION_ID_PS = 2;
 const EXP2 = [1, Math.SQRT2];
 
-let pool = [];
-
-class SBR {
-  constructor(sampleRate, downSampled) {
-    this.sampleRate = 2 * sampleRate;
+class SBR extends PooledObject {
+  constructor() {
+    super();
+    this.sampleRate = 0;
     this.header = new SBRHeader;
     this.tables = new FrequencyTables;
     this.cd = [new ChannelData, new ChannelData];
@@ -32,15 +32,10 @@ class SBR {
     this.Y = new Float32Array(2 * 38 * 64 * 2);
   }
   
-  static get(sampleRate, downSampled) {
-    let sbr = pool.length ? pool.pop() : new SBR(sampleRate, downSampled);
-    sbr.sampleRate = 2 * sampleRate;
-    return sbr;
+  init(sampleRate) {
+    this.sampleRate = 2 * sampleRate;
   }
   
-  static release(sbr) {
-    pool.push(sbr);
-  }
   
   decode(stream, count, stereo, crc) {
     this.stereo = stereo;

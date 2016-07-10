@@ -247,7 +247,7 @@ class AACDecoder extends AV.Decoder {
         
         for (let element of elements) {
             if (element.sbr) {
-                SBR.release(element.sbr);
+                element.sbr.release();
             }
         }
         
