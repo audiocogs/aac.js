@@ -70,18 +70,18 @@ class SBR {
         this.decodeSingleChannel(stream);
       }
       
-              if (stream.read(1)) {
+      if (stream.read(1)) {
         let count = stream.read(4);
         if (count === 15) count += stream.read(8);
         let bitsLeft = 8 * count;
 
         let extensionID;
-        while (bitsLeft>7) {
+        while (bitsLeft > 7) {
           bitsLeft -= 2;
           extensionID = stream.read(2);
           bitsLeft -= this.decodeExtension(stream, extensionID);
         }
-              }
+      }
     }
     
     stream.seek(end);

@@ -147,7 +147,7 @@ export default class FrequencyTables {
       
       // check requirement (4.6.18.6.3):
       if (vDk0[i] <= 0) {
-        throw new AACException("SBR: illegal value in master frequency table: " + vDk0[i]);
+        throw new Error("SBR: illegal value in master frequency table: " + vDk0[i]);
       }
     }
     
@@ -286,7 +286,7 @@ export default class FrequencyTables {
 
     // check requirement (4.6.18.6.3):
     if (this.patchCount > 5) {
-      throw new AACException("SBR: too many patches: " + this.patchCount);
+      throw new Error("SBR: too many patches: " + this.patchCount);
     }
   }
   

@@ -358,8 +358,8 @@ export default class HFAdjuster {
             Y[ch][i][m + kx][1] += Sm[e][m] * (PHI[1][sineIndex] * phiSign);
             phiSign = -phiSign;
           
-            if (isNaN(Y[i][m + kx][0]) || isNaN(Y[i][m + kx][1])) {
-              console.log(this.Sm[e][m], PHI[0][sineIndex]);
+            if (isNaN(Y[ch][i][m + kx][0]) || isNaN(Y[ch][i][m + kx][1])) {
+              console.log(Sm[e][m], PHI[0][sineIndex]);
             }
           }
         }
