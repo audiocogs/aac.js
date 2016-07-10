@@ -87,6 +87,21 @@ class SBR {
     stream.seek(end);
   }
   
+  decodeSingleChannel(stream) {
+    if (stream.read(1)) {
+      stream.advance(4); // reserved
+    }
+    
+    this.cd[0].decodeGrid(stream, this.header, this.tables);
+    this.cd[0].decodeDTDF(stream);
+    this.cd[0].decodeInvf(stream, this.header, this.tables);
+    this.cd[0].decodeEnvelope(stream, this.header, this.tables, false, false);
+    this.cd[0].decodeNoise(stream, this.header, this.tables, false, false);
+    this.cd[0].decodeSinusoidal(stream, this.header, this.tables);
+    
+    this.dequantSingle(this.cd[0]);
+  }
+  
   decodeChannelPair(stream) {
     if (stream.read(1)) {
       stream.advance(8); // reserved

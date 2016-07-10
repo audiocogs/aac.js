@@ -319,7 +319,7 @@ class AACDecoder extends AV.Decoder {
             throw new Error("Gain control not implemented");
             
         if (this.sbrPresent)
-            throw new Error("SBR not implemented");
+            element.sbr.process(this.data[channel], null, false);
             
         return 1;
     }
