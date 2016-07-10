@@ -1,61 +1,56 @@
 import {TIME_SLOTS_RATE, WINDOW} from './constants';
+import MDCT from '../mdct';
 
 export default class AnalysisFilterbank {
   constructor() {
     this.X = new Float32Array(2 * 320);
     this.z = new Float32Array(320);
-    this.u = new Float32Array(64);
-    
-    let COEFS[32][64][2] = this.COEFS = new Float32Array(32 * 64 * 2);
-    let tmp;
-    for (let k = 0; k < 32; k++) {
-      for (let n = 0; n < 64; n++) {
-        tmp = Math.PI / 64.0 * (k + 0.5) * (2 * n - 0.5);
-        COEFS[k][n][0] = 2 * Math.cos(tmp);
-        COEFS[k][n][1] = 2 * Math.sin(tmp);
-      }
-    }
+    this.mdct = new MDCT(128, 2);
   }
   
   // in: 1024 time samples, out: 32 x 32 complex
   process(inp, out[2][32][32][2], ch) {
-    let COEFS[32][64][2] = this.COEFS;
     let x[2][320] = this.X;
-    let n, k, inOff = 0;
+    let k, inOff = 0;
+    let z = this.z;
     
     // each loop creates 32 complex subband samples
     for (let l = 0; l < TIME_SLOTS_RATE; l++) {
       // 1. shift buffer
-      for (n = 319; n >= 32; n--) {
-        x[ch][n] = x[ch][n - 32];
+      for (k = 319; k >= 32; k--) {
+        x[ch][k] = x[ch][k - 32];
       }
 
       // 2. add new samples
-      for (n = 31; n >= 0; n--) {
-        x[ch][n] = inp[inOff++];
+      for (k = 31; k >= 0; k--) {
+        x[ch][k] = inp[inOff++];
       }
 
       // 3. windowing
-      for (n = 0; n < 320; n++) {
-        this.z[n] = x[ch][n] * WINDOW[2 * n];
+      for (k = 0; k < 320; k++) {
+        z[k] = x[ch][k] * WINDOW[2 * k];
       }
 
       // 4. sum samples
-      for (n = 0; n < 64; n++) {
-        this.u[n] = this.z[n];
-        for (k = 1; k < 5; k++) {
-          this.u[n] += this.z[n + k * 64];
-        }
+      for (k = 0; k < 64; k++) {
+        z[k] = z[k] + z[k + 64] + z[k + 128] + z[k + 192] + z[k + 256];
+      }
+      
+      // 5. pre IMDCT shuffle
+      z[64] = z[0];
+      z[65] = z[1];
+      for (k = 1; k < 32; k++) {
+        z[64 + 2 * k    ] = -z[64 - k];
+        z[64 + 2 * k + 1] =  z[ k + 1];
       }
 
-      // 5. calculate subband samples, TODO: replace with FFT?
+      // 6. calculate subband samples
+      this.mdct.half(z, 64, z, 0);
+
+      // 7. post IMDCT shuffle
       for (k = 0; k < 32; k++) {
-        out[ch][l][k][0] = this.u[0] * COEFS[k][0][0];
-        out[ch][l][k][1] = this.u[0] * COEFS[k][0][1];
-        for (n = 1; n < 64; n++) {
-          out[ch][l][k][0] += this.u[n] * COEFS[k][n][0];
-          out[ch][l][k][1] += this.u[n] * COEFS[k][n][1];
-        }
+        out[ch][l][k][0] = -z[63 - k];
+        out[ch][l][k][1] = z[k];
       }
     }
   }

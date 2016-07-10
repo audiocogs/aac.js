@@ -25,7 +25,7 @@ class SBR {
     this.hfGen = new HFGenerator;
     this.hfAdj = new HFAdjuster;
     
-    this.X = new Float32Array(2 * 64 * 38 * 2);
+    this.X = new Float32Array(2 * 2 * 38 * 64);
     this.Xlow = new Float32Array(32 * 40 * 2);
     this.Xhigh = new Float32Array(64 * 40 * 2);
     this.W = new Float32Array(2 * 32 * 32 * 2);
@@ -256,7 +256,7 @@ class SBR {
     let Xhigh[64][40][2] = this.Xhigh;
     let W[2][32][32][2] = this.W;
     let Y[2][38][64][2] = this.Y;
-    let X[2][64][38][2] = this.X;
+    let X[2][2][38][64] = this.X;
     
     // 1. old W -> Xlow (4.6.18.5)
     let kxPrev = this.tables.kxPrev;
@@ -299,19 +299,19 @@ class SBR {
     let m = this.tables.m;
     for (l = 0; l < lTemp; l++) {
       for (k = 0; k<kxPrev; k++) {
-        X[ch][k][l][0] = Xlow[k][l + T_HF_ADJ][0];
-        X[ch][k][l][1] = Xlow[k][l + T_HF_ADJ][1];
+        X[ch][0][l][k] = Xlow[k][l + T_HF_ADJ][0];
+        X[ch][1][l][k] = Xlow[k][l + T_HF_ADJ][1];
       }
 
       for (k = kxPrev; k < kxPrev + mPrev; k++) {
-        X[ch][k][l][0] = Y[ch][l + TIME_SLOTS_RATE][k][0];
-        X[ch][k][l][1] = Y[ch][l + TIME_SLOTS_RATE][k][1];
+        X[ch][0][l][k] = Y[ch][l + TIME_SLOTS_RATE][k][0];
+        X[ch][1][l][k] = Y[ch][l + TIME_SLOTS_RATE][k][1];
         
       }
 
       for (k = kxPrev + mPrev; k < 64; k++) {
-        X[ch][k][l][0] = 0;
-        X[ch][k][l][1] = 0;
+        X[ch][0][l][k] = 0;
+        X[ch][1][l][k] = 0;
       }
     }
     
@@ -321,18 +321,18 @@ class SBR {
     // 7. new Y -> X
     for (l = lTemp; l < TIME_SLOTS_RATE; l++) {
       for (k = 0; k < kx; k++) {
-        X[ch][k][l][0] = Xlow[k][l + T_HF_ADJ][0];
-        X[ch][k][l][1] = Xlow[k][l + T_HF_ADJ][1];
+        X[ch][0][l][k] = Xlow[k][l + T_HF_ADJ][0];
+        X[ch][1][l][k] = Xlow[k][l + T_HF_ADJ][1];
       }
       
       for (k = kx; k<kx+m; k++) {
-        X[ch][k][l][0] = Y[ch][l][k][0];
-        X[ch][k][l][1] = Y[ch][l][k][1];
+        X[ch][0][l][k] = Y[ch][l][k][0];
+        X[ch][1][l][k] = Y[ch][l][k][1];
       }
       
       for (k = kx + m; k < 64; k++) {
-        X[ch][k][l][0] = 0;
-        X[ch][k][l][1] = 0;
+        X[ch][0][l][k] = 0;
+        X[ch][1][l][k] = 0;
       }
     }
 
