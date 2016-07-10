@@ -32,6 +32,8 @@ var SBR = require('./sbr/sbr');
 const AOT_AAC_MAIN = 1, // no
       AOT_AAC_LC = 2,   // yes
       AOT_AAC_LTP = 4,  // no
+      AOT_AAC_SBR = 5,
+      AOT_AAC_PS = 29,
       AOT_ESCAPE = 31;
       
 // Channel configurations
@@ -62,28 +64,24 @@ class AACDecoder extends AV.Decoder {
         var stream = AV.Bitstream.fromBuffer(buffer);
         
         this.config = {};
-        this.config.profile = stream.read(5);
-        if (this.config.profile === AOT_ESCAPE)
-            this.config.profile = 32 + stream.read(6);
-            
-        this.config.sampleIndex = stream.read(4);
-        if (this.config.sampleIndex === 0x0f) {
-            this.config.sampleRate = stream.read(24);
-            for (var i = 0; i < tables.SAMPLE_RATES.length; i++) {
-                if (tables.SAMPLE_RATES[i] === this.config.sampleRate) {
-                    this.config.sampleIndex = i;
-                    break;
-                }
-            }
-        } else {
-            this.config.sampleRate = tables.SAMPLE_RATES[this.config.sampleIndex];
-        }
-            
+        this.config.profile = this.decodeProfile(stream);
+        this.decodeSampleRate(stream, this.config);
+        
         this.config.chanConfig = stream.read(4);
         this.format.channelsPerFrame = this.config.chanConfig; // sometimes m4a files encode this wrong
         this.format.sampleRate = this.config.sampleRate;
         
         switch (this.config.profile) {
+            case AOT_AAC_PS:
+              this.config.psPresent = true;
+              // fall through
+              
+            case AOT_AAC_SBR:
+              this.config.sbrPresent = true;
+              this.format.sampleRate = this.decodeSampleRate(stream).sampleRate;
+              this.config.profile = this.decodeProfile(stream);
+              // fall through
+              
             case AOT_AAC_MAIN:
             case AOT_AAC_LC:
             case AOT_AAC_LTP:
@@ -116,20 +114,15 @@ class AACDecoder extends AV.Decoder {
                 throw new Error('AAC profile ' + this.config.profile + ' not supported.');
         }
         
-        console.log(stream.available(10))
         if (stream.available(11)) {
             let type = stream.read(11);
             switch (type) {
-                case 0x2B7:
-                    let profile = stream.read(5);
-                    if (profile === 5) {
+                case 0x2B7: // sync extension
+                    let profile = this.decodeProfile(stream);
+                    if (profile === AOT_AAC_SBR) {
                         this.config.sbrPresent = stream.read(1);
                         if (this.config.sbrPresent) {
-                            this.config.profile = profile;
-                            
-                            let sampleIndex = stream.read(4);
-                            this.format.sampleRate = tables.SAMPLE_RATES[sampleIndex];
-                            console.log(this.config)
+                            this.format.sampleRate = this.decodeSampleRate(stream).sampleRate;
                         }
                     }
                     break;
@@ -137,6 +130,27 @@ class AACDecoder extends AV.Decoder {
         }
         
         this.filter_bank = new FilterBank(false, this.config.chanConfig);        
+    }
+    
+    decodeProfile(stream) {
+      let profile = stream.read(5);
+      if (profile === AOT_ESCAPE) {
+          profile = 32 + stream.read(6);
+      }
+      
+      return profile;
+    }
+    
+    decodeSampleRate(stream, out = {}) {
+      out.sampleIndex = stream.read(4);
+      if (out.sampleIndex === 0x0f) {
+          out.sampleRate = stream.read(24);
+          out.sampleIndex = tables.SAMPLE_INDEXES[out.sampleRate];
+      } else {
+          out.sampleRate = tables.SAMPLE_RATES[out.sampleIndex];
+      }
+      
+      return out;
     }
         
     // The main decoding function.
