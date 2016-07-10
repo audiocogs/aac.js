@@ -52,18 +52,15 @@ class SBR {
     }
     
     if (stream.read(1)) {
-      // console.log("HEADER")
       this.header.decode(stream);
       if (this.header.reset) {
         this.tables.calculate(this.header, this.sampleRate);
       } else if (this.header.limiterBands !== this.header.limiterBandsPrev) {
-        console.log("LIMITER BANDS CHANGED")
         this.tables.calculateLimiterTable(this.header);
       }
     }
         
     if (this.header.decoded) {
-      // console.log('decode', stereo)
       if (stereo) {
         this.decodeChannelPair(stream);
       } else {
@@ -166,7 +163,7 @@ class SBR {
         }
         
         if (f1 > 1e20) {
-          console.log("DEQUANT OUT OF BOUNDS");
+          // out of bounds
           f1 = 1;
         }
         
@@ -212,7 +209,7 @@ class SBR {
         }
     
         if (e[l][k] > 1e20) {
-          console.log("DEQUANT OUT OF BOUNDS");
+          // out of bounds
           e[l][k] = 1;
         }
       }
@@ -234,11 +231,7 @@ class SBR {
   decodeExtension(stream, extensionID) {
     switch (extensionID) {
       case EXTENSION_ID_PS:
-        console.log("PS!")
-        // this.psUsed = true;
-        // if(ps==null) ps = new PS();
-        // ps.decode(in);
-        // if(!psUsed&&ps.hasHeader()) psUsed = true;
+        // TODO
         break;
     }
   }
@@ -251,19 +244,13 @@ class SBR {
     if (this.stereo) {
       this.processChannel(1, right);
     } else if (this.psUsed) {
-      throw new Error('PS data unsupported')
+      throw new Error('PS data unsupported');
     }
 
     this.qmfS.process(this.X, left, 0);
     if (this.stereo || this.psUsed) {
       this.qmfS.process(this.X, right, 1);
     }
-    //
-    // for (let i = 0; i < left.length; i++) {
-    //   if (isNaN(left[i])) {
-    //     console.log("NAN LEFT")
-    //   }
-    // }
   }
   
   processChannel(ch, data) {
@@ -321,7 +308,6 @@ class SBR {
       for (k = kxPrev; k < kxPrev + mPrev; k++) {
         X[ch][0][l][k] = Y[ch][l + TIME_SLOTS_RATE][k][0];
         X[ch][1][l][k] = Y[ch][l + TIME_SLOTS_RATE][k][1];
-        
       }
 
       for (k = kxPrev + mPrev; k < 64; k++) {

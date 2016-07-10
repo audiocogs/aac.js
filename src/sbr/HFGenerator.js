@@ -3,7 +3,7 @@ import {RATE, T_HF_ADJ} from './constants';
 const RELAX_COEF = 1.000001;
 const ALPHA_MAX = 16;
 const CHIRP_COEFS = [[0.75, 0.25], [0.90625, 0.09375]];
-//values for bw [invfModePrev][invfMode]
+// values for bw [invfModePrev][invfMode]
 const BW_COEFS = [
   [0.0, 0.6, 0.9, 0.98],
   [0.6, 0.75, 0.9, 0.98],
@@ -96,7 +96,7 @@ export default class HFGenerator {
   }
 
   calculateChirpFactors(tables, cd) {
-    //calculates chirp factors and replaces old ones in ChannelData
+    // calculates chirp factors and replaces old ones in ChannelData
     let nq = tables.nq;
     let invfMode = cd.invfMode;
     let invfModePrevious = cd.invfModePrevious;
@@ -124,7 +124,6 @@ export default class HFGenerator {
     let phi[3][2][2] = this.phi;
     let d;
     for (let k = 0; k < k0; k++) {
-      //get covariance matrix
       this.getCovarianceMatrix(Xlow, k, phi);
 
       // d(k)
@@ -167,6 +166,7 @@ export default class HFGenerator {
     let real_sum2 = x[k][0][0] * x[k][2][0] + x[k][0][1] * x[k][2][1];
     let imag_sum2 = x[k][0][0] * x[k][2][1] - x[k][0][1] * x[k][2][0];
     let real_sum1 = 0.0, imag_sum1 = 0.0, real_sum0 = 0.0;
+    
     for (let i = 1; i < 38; i++) {
       real_sum0 += x[k][i][0] * x[k][i    ][0] + x[k][i][1] * x[k][i    ][1];
       real_sum1 += x[k][i][0] * x[k][i + 1][0] + x[k][i][1] * x[k][i + 1][1];
@@ -174,6 +174,7 @@ export default class HFGenerator {
       real_sum2 += x[k][i][0] * x[k][i + 2][0] + x[k][i][1] * x[k][i + 2][1];
       imag_sum2 += x[k][i][0] * x[k][i + 2][1] - x[k][i][1] * x[k][i + 2][0];
     }
+    
     phi[2 - 2][1][0] = real_sum2;
     phi[2 - 2][1][1] = imag_sum2;
     phi[2    ][1][0] = real_sum0 + x[k][ 0][0] * x[k][ 0][0] + x[k][ 0][1] * x[k][ 0][1];

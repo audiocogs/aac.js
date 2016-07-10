@@ -20,7 +20,7 @@ export default class SBRHeader {
     this.startFrequency = stream.read(4);
     this.stopFrequency = stream.read(4);
     this.xOverBand = stream.read(3);
-    stream.advance(2); //reserved
+    stream.advance(2); // reserved
 
     let extraHeader1 = stream.read(1);
     let extraHeader2 = stream.read(1);

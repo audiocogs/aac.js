@@ -8,12 +8,12 @@ const MFT_START_MIN = new Uint8Array([7, 7, 10, 11, 12, 16, 16, 17, 24]);
 const MFT_STOP_MIN = new Uint8Array([13, 15, 20, 21, 23, 32, 32, 35, 48]);
 const MFT_SF_OFFSETS = new Uint8Array([5, 5, 4, 4, 4, 3, 2, 1, 0]);
 const MFT_START_OFFSETS = [
-  new Int8Array([-8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7]), //16000
-  new Int8Array([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 9, 11, 13]), //22050
-  new Int8Array([-5, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 9, 11, 13, 16]), //24000
-  new Int8Array([-6, -4, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 9, 11, 13, 16]), //32000
-  new Int8Array([-4, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 9, 11, 13, 16, 20]), //44100-64000
-  new Int8Array([-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 9, 11, 13, 16, 20, 24]) //>64000
+  new Int8Array([-8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7]), // 16000
+  new Int8Array([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 9, 11, 13]), // 22050
+  new Int8Array([-5, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 9, 11, 13, 16]), // 24000
+  new Int8Array([-6, -4, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 9, 11, 13, 16]), // 32000
+  new Int8Array([-4, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 9, 11, 13, 16, 20]), // 44100-64000
+  new Int8Array([-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 9, 11, 13, 16, 20, 24]) // >64000
 ];
 const MFT_STOP_OFFSETS = [
   new Uint8Array([2, 4, 6, 8, 11, 14, 18, 22, 26, 31, 37, 44, 51]),
@@ -29,9 +29,9 @@ const MFT_STOP_OFFSETS = [
 const MFT_INPUT1 = new Uint8Array([12, 10, 8]);
 const MFT_INPUT2 = new Float32Array([1.0, 1.3]);
 const LIM_BANDS_PER_OCTAVE_POW = new Float32Array([
-  1.32715174233856803909, //2^(0.49/1.2)
-  1.18509277094158210129, //2^(0.49/2)
-  1.11987160404675912501 //2^(0.49/3)
+  1.32715174233856803909, // 2^(0.49/1.2)
+  1.18509277094158210129, // 2^(0.49/2)
+  1.11987160404675912501 // 2^(0.49/3)
 ]);
 const GOAL_SB_FACTOR = 2.048E6;
 
@@ -99,7 +99,7 @@ export default class FrequencyTables {
       throw new Error("SBR: too many subbands: "+ (this.k2 - this.k0) + ", maximum number for samplerate " + this.sampleRate + ": " + max);
     }
 
-    //MFT calculation
+    // MFT calculation
     if (header.frequencyScale === 0) {
       // TODO
       this.calculateMFT1(header, this.k0, this.k2);
@@ -107,13 +107,13 @@ export default class FrequencyTables {
       this.calculateMFT2(header, this.k0, this.k2);
     }
 
-    //check requirement (4.6.18.3.6):
+    // check requirement (4.6.18.3.6):
     if (header.xOverBand >= this.nMaster) {
       throw new Error("SBR: illegal length of master frequency table: " + this.nMaster + ", xOverBand: " + header.xOverBand);
     }
   }
   
-  // MFT calculation if frequencyScale>0
+  // MFT calculation if frequencyScale > 0
   calculateMFT2(header, k0, k2) {
     let bands = MFT_INPUT1[header.frequencyScale - 1];
     let warp = MFT_INPUT2[header.alterScale ? 1 : 0];
@@ -213,8 +213,13 @@ export default class FrequencyTables {
     this.m = this.fTable[1][this.n[1]] - this.kx;
     
     // check requirements (4.6.18.3.6):
-    if (this.kx > 32) throw new Error("SBR: start frequency border out of range: " + this.kx);
-    if ((this.kx + this.m) > 64) throw new Error("SBR: stop frequency border out of range: " + (this.kx + this.m));
+    if (this.kx > 32) {
+      throw new Error("SBR: start frequency border out of range: " + this.kx);
+    }
+    
+    if ((this.kx + this.m) > 64) {
+      throw new Error("SBR: stop frequency border out of range: " + (this.kx + this.m));
+    }
 
     this.fTable[0] = new Int32Array(this.n[0] + 1);
     this.fTable[0][0] = this.fTable[1][0];
@@ -230,7 +235,9 @@ export default class FrequencyTables {
     this.nq = Math.max(1, x);
     
     // check requirement (4.6.18.6.3):
-    if (this.nq > 5) throw new Error("SBR: too many noise floor scalefactors: " + this.nq);
+    if (this.nq > 5) {
+      throw new Error("SBR: too many noise floor scalefactors: " + this.nq);
+    }
 
     this.fNoise = new Int32Array(this.nq + 1);
     this.fNoise[0] = this.fTable[0][0];

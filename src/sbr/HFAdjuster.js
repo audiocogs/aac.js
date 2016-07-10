@@ -52,7 +52,7 @@ export default class HFAdjuster {
     let freqRes = cd.freqRes;
     let la = cd.la;
 
-    //input and output arrays
+    // input and output arrays
     let eOrig[5][48] = cd.envelopeSF;
     let eMapped[7][48] = this.eMapped;
     let qOrig[2][64] = cd.noiseFloorData;
@@ -137,7 +137,7 @@ export default class HFAdjuster {
         for (m = 0; m < M; m++) {
           sum = 0.0;
 
-          //energy = sum over squares of absolute value
+          // energy = sum over squares of absolute value
           for (i = iLow; i < iHigh; i++) {
             sum += Xhigh[m + kx][i][0] * Xhigh[m + kx][i][0] + Xhigh[m + kx][i][1] * Xhigh[m + kx][i][1];
           }
@@ -148,7 +148,6 @@ export default class HFAdjuster {
     } else {
       let n = tables.n;
       let freqRes = cd.freqRes;
-
       let k;
       let table;
       let div1, div2;
@@ -179,7 +178,7 @@ export default class HFAdjuster {
     }
   }
   
-  //calculation of levels of additional HF signal components (4.6.18.7.4) and gain calculation (4.6.18.7.5)
+  // calculation of levels of additional HF signal components (4.6.18.7.4) and gain calculation (4.6.18.7.5)
   calculateGain(header, tables, cd) {
     let limGain = header.limiterGains;
     let M = tables.m;

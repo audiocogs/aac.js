@@ -71,7 +71,7 @@ export default class ChannelData {
         relLead = this.envCount - 1;
         if (this.envCount === 1) this.ampRes = false;
         
-        //check requirement (4.6.18.6.3):
+        // check requirement (4.6.18.6.3):
         else if (this.envCount > 4) {
           throw new Error("SBR: too many envelopes: " + this.envCount);
         }
@@ -120,7 +120,7 @@ export default class ChannelData {
           this.freqRes[i] = stream.read(1);
         }
         break;
-      default: //VARVAR
+      default: // VARVAR
         this.te[0] = stream.read(2);
         absBordTrail += stream.read(2);
         relLead = stream.read(2);
@@ -250,37 +250,37 @@ export default class ChannelData {
           for (j = 0; j < envBands[this.freqRes[i]]; j++) {
             envelopeSFQ[i + 1][j] = envelopeSFQ[i][j] + ((this.decodeHuffman(stream, tHuff) - tLav) << delta);
             if (envelopeSFQ[i + 1][j] > 127) {
-              console.log("OUT OF BOUNDS", envelopeSFQ[i + 1][j], i, envelopeSFQ[i][j], delta, tLav)
+              throw new Error('Envelope scale factor out of bounds');
             }
           }
         } else if (this.freqRes[i] !== 0) {
           for (j = 0; j < envBands[this.freqRes[i]]; j++) {
-            k = (j + odd) >> 1; //fLow[k] <= fHigh[j] < fLow[k + 1]
+            k = (j + odd) >> 1; // fLow[k] <= fHigh[j] < fLow[k + 1]
             envelopeSFQ[i + 1][j] = envelopeSFQ[i][k] + ((this.decodeHuffman(stream, tHuff) - tLav) << delta);
             if (envelopeSFQ[i + 1][j] > 127) {
-              console.log("OUT OF BOUNDS 2", envelopeSFQ[i + 1][j], i, k, envelopeSFQ[i][k], delta, tLav)
+              throw new Error('Envelope scale factor out of bounds');
             }
             
           }
         } else {
           for (j = 0; j < envBands[this.freqRes[i]]; j++) {
-            k = j !== 0 ? (2 * j - odd) : 0; //fHigh[k] == fLow[j]
+            k = j !== 0 ? (2 * j - odd) : 0; // fHigh[k] == fLow[j]
             envelopeSFQ[i + 1][j] = envelopeSFQ[i][k] + ((this.decodeHuffman(stream, tHuff) - tLav) << delta);
             if (envelopeSFQ[i + 1][j] > 127) {
-              console.log("OUT OF BOUNDS 3", envelopeSFQ[i + 1][j], i, k, envelopeSFQ[i][k], delta, tLav)
+              throw new Error('Envelope scale factor out of bounds');
             }
           }
         }
       } else {
         envelopeSFQ[i + 1][0] = stream.read(bits) << delta;
         if (envelopeSFQ[i + 1][0] > 127) {
-          console.log("OUT OF BOUNDS 5", envelopeSFQ[i + 1][0], delta)
+          throw new Error('Envelope scale factor out of bounds');
         }
         
         for (j = 1; j < envBands[this.freqRes[i]]; j++) {
           envelopeSFQ[i + 1][j] = envelopeSFQ[i + 1][j - 1] + ((this.decodeHuffman(stream, fHuff) - fLav) << delta);
           if (envelopeSFQ[i + 1][j] > 127) {
-            console.log("OUT OF BOUNDS 4", envelopeSFQ[i + 1][j], envelopeSFQ[i + 1][j - 1], delta, tLav)
+            throw new Error('Envelope scale factor out of bounds');
           }
         }
       }
@@ -342,7 +342,7 @@ export default class ChannelData {
       }
     }
 
-    //save for next frame
+    // save for next frame
     noiseFloorDataQ[0].set(noiseFloorDataQ[this.noiseCount]);
   }
   
@@ -374,16 +374,16 @@ export default class ChannelData {
   }
   
   savePreviousData() {
-    //lTemp for next frame
+    // lTemp for next frame
     this.lTemp = RATE * this.te[this.envCount] - TIME_SLOTS_RATE;
 
-    //grid
+    // grid
     this.envCountPrev = this.envCount;
     this.freqResPrevious = this.freqRes[this.freqRes.length - 1];
     this.laPrevious = this.la === this.envCountPrev ? 0 : -1;
     this.tePrevious = this.te[this.envCountPrev];
     
-    //invf
+    // invf
     this.invfModePrevious.set(this.invfMode);
   }
 }

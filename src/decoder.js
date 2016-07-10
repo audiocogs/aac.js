@@ -231,11 +231,6 @@ class AACDecoder extends AV.Decoder {
                     var end = stream.offset() + id;
                     
                     FIL.decode(stream, id, this.prev, this.config.sampleRate);
-
-                    if (this.prev && this.prev.sbr) {
-                        this.sbrPresent = true;
-                    }
-                    
                     this.prev = null;
                     
                     // skip for now...
@@ -273,11 +268,7 @@ class AACDecoder extends AV.Decoder {
     
     process(elements) {
         var channels = this.config.chanConfig;
-        
-        // if (channels === 1 &&  psPresent)
-        // TODO: sbrPresent (2)
         var mult = this.config.sbrPresent ? 2 : 1;
-        
         var len = mult * this.config.frameLength;
         var data = this.data = [];
         
@@ -332,7 +323,7 @@ class AACDecoder extends AV.Decoder {
         if (element.gainPresent)
             throw new Error("Gain control not implemented");
             
-        if (this.sbrPresent)
+        if (element.sbr)
             element.sbr.process(this.data[channel], null, false);
             
         return 1;
@@ -385,8 +376,7 @@ class AACDecoder extends AV.Decoder {
         if (right.gainPresent)
             throw new Error("Gain control not implemented");
             
-        if (this.sbrPresent) {
-            // throw new Error("SBR not implemented");
+        if (element.sbr) {
             element.sbr.process(this.data[channel], this.data[channel + 1], false);
         }
     }

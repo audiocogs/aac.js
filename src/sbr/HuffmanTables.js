@@ -12,7 +12,7 @@ export const F_HUFFMAN_NOISE_3_0_LAV = F_HUFFMAN_ENV_3_0_LAV;
 export const T_HUFFMAN_NOISE_BAL_3_0_LAV = 12;
 export const F_HUFFMAN_NOISE_BAL_3_0_LAV = F_HUFFMAN_ENV_BAL_3_0_LAV;
 
-//codebooks: [bit length, codeword, values...]
+// codebooks: [bit length, codeword, values...]
 export const T_HUFFMAN_ENV_1_5 = [
   [2, 0, 60],
   [2, 1, 59],

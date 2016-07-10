@@ -39,7 +39,6 @@ function MDCT(length, scale) {
   }
   
   this.fft = new FFT(this.N4);
-  this.buf = new Float32Array(this.N4 * 2);
 }
 
 /**
