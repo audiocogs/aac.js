@@ -235,7 +235,7 @@ class SBR {
     switch (extensionID) {
       case EXTENSION_ID_PS:
         console.log("PS!")
-        this.psUsed = true;
+        // this.psUsed = true;
         // if(ps==null) ps = new PS();
         // ps.decode(in);
         // if(!psUsed&&ps.hasHeader()) psUsed = true;
