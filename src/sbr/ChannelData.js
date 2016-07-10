@@ -380,7 +380,7 @@ export default class ChannelData {
     //grid
     this.envCountPrev = this.envCount;
     this.freqResPrevious = this.freqRes[this.freqRes.length - 1];
-    this.laPrevious = this.la;
+    this.laPrevious = this.la === this.envCountPrev ? 0 : -1;
     this.tePrevious = this.te[this.envCountPrev];
     
     //invf

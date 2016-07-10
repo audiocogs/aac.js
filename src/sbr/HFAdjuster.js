@@ -188,7 +188,7 @@ export default class HFAdjuster {
     let kx = tables.kx;
 
     let la = cd.la;
-    let laPrevious = cd.laPrevious === cd.envCountPrev ? 0 : -1;
+    let laPrevious = cd.laPrevious;
     let le = cd.envCount;
 
     // output arrays
@@ -234,7 +234,6 @@ export default class HFAdjuster {
       
         gMax = LIMITER_GAINS[limGain] * Math.sqrt((EPSILON_0 + sum0) / (EPSILON_0 + sum1));
         gMax = Math.min(MAX_GAIN, gMax);
-        // console.log(gMax, limGain, LIMITER_GAINS[limGain], EPSILON_0, sum0, sum1)
       
         for (m = fLim[k] - kx; m < fLim[k + 1] - kx; m++) {
           let qmMax = Qm[e][m] * gMax / gain[e][m];
@@ -256,9 +255,6 @@ export default class HFAdjuster {
           gain[e][m] *= gainBoost;
           Qm[e][m] *= gainBoost;
           Sm[e][m] *= gainBoost;
-          // if (isNaN(gain[e][m])) {
-            // console.log(gainBoost, sum0, sum1)
-          // }
         }
       }
     }
@@ -273,9 +269,9 @@ export default class HFAdjuster {
     let lePrev = cd.envCountPrev;
     let te = cd.te;
     let la = cd.la;
-    let laPrev = cd.laPrevious === cd.envCountPrev ? 0 : -1;
+    let laPrev = cd.laPrevious;
     let kx = tables.kx;
-    let noiseIndex = reset ? 0 : cd.noiseIndex;
+    let noiseIndex = cd.noiseIndex;
     let sineIndex = cd.sineIndex;
 
     let gTmp[42][48] = cd.gTmp;
@@ -311,6 +307,9 @@ export default class HFAdjuster {
 
     for (e = 0; e < le; e++) {
       for (i = RATE * te[e]; i < RATE * te[e + 1]; i++) {
+        let phiSign0 = PHI[0][sineIndex];
+        let phiSign1 = PHI[1][sineIndex] * (1 - 2 * (kx & 1));
+        
         if (hSL !== 0 && e !== la && e != laPrev) {
           for (m = 0; m < M; m++) {
             let idx1 = i + hSL;
@@ -330,12 +329,12 @@ export default class HFAdjuster {
         }
 
         if (e !== la && e !== laPrev) {
-          let phiSign = (1 - 2 * (kx & 1));
-        
           for (m = 0; m < M; m++) {
+            noiseIndex = (noiseIndex + 1) & 0x1ff;
+            
             if (Sm[e][m] !== 0) {
-              Y[ch][i][m + kx][0] += Sm[e][m] * PHI[0][sineIndex];
-              Y[ch][i][m + kx][1] += Sm[e][m] * (PHI[1][sineIndex] * phiSign);
+              Y[ch][i][m + kx][0] += Sm[e][m] * phiSign0;
+              Y[ch][i][m + kx][1] += Sm[e][m] * phiSign1;
             } else {
               if (hSL !== 0) {
                 let idx1 = i + hSL;
@@ -349,22 +348,19 @@ export default class HFAdjuster {
               Y[ch][i][m + kx][0] += qFilt * NOISE_TABLE[noiseIndex][0];
               Y[ch][i][m + kx][1] += qFilt * NOISE_TABLE[noiseIndex][1];
             }
-            phiSign = -phiSign;
+            
+            phiSign1 = -phiSign1;
           }
         } else {
-          let phiSign = (1 - 2 * (kx & 1));
           for (m = 0; m < M; m++) {
-            Y[ch][i][m + kx][0] += Sm[e][m] * PHI[0][sineIndex];
-            Y[ch][i][m + kx][1] += Sm[e][m] * (PHI[1][sineIndex] * phiSign);
-            phiSign = -phiSign;
-          
-            if (isNaN(Y[ch][i][m + kx][0]) || isNaN(Y[ch][i][m + kx][1])) {
-              console.log(Sm[e][m], PHI[0][sineIndex]);
-            }
+            Y[ch][i][m + kx][0] += Sm[e][m] * phiSign0;
+            Y[ch][i][m + kx][1] += Sm[e][m] * phiSign1;
+            phiSign1 = -phiSign1;
           }
+          
+          noiseIndex = (noiseIndex + M) & 0x1ff;
         }
       
-        noiseIndex = (noiseIndex + 1) & 0x1ff;
         sineIndex = (sineIndex + 1) & 3;
       }
     }
