@@ -32,8 +32,8 @@ function FilterBank(smallFrames, channels) {
     this.mid = (this.length - this.shortLength) / 2;
     this.trans = this.shortLength / 2;
 
-    this.mdctShort = new MDCT(this.shortLength * 2);
-    this.mdctLong  = new MDCT(this.length * 2);
+    this.mdctShort = new MDCT(this.shortLength * 2, 1 / 128);
+    this.mdctLong  = new MDCT(this.length * 2, 1 / 1024);
 
     this.overlaps = new Array(channels);
     for (var i = 0; i < channels; i++) {
@@ -103,7 +103,7 @@ FilterBank.prototype.process = function(info, input, output, channel) {
 
     switch (info.windowSequence) {
         case ICStream.ONLY_LONG_SEQUENCE:
-            mdctLong.process(input, 0, buf, 0);
+            mdctLong.full(input, 0, buf, 0);
 
             // add second half output of previous frame to windowed output of current frame
             for (var i = 0; i < length; i++) {
@@ -118,7 +118,7 @@ FilterBank.prototype.process = function(info, input, output, channel) {
             break;
 
         case ICStream.LONG_START_SEQUENCE:
-            mdctLong.process(input, 0, buf, 0);
+            mdctLong.full(input, 0, buf, 0);
 
             // add second half output of previous frame to windowed output of current frame
             for (var i = 0; i < length; i++) {
@@ -142,7 +142,7 @@ FilterBank.prototype.process = function(info, input, output, channel) {
 
         case ICStream.EIGHT_SHORT_SEQUENCE:
             for (var i = 0; i < 8; i++) {
-                mdctShort.process(input, i * shortLen, buf, 2 * i * shortLen);
+                mdctShort.full(input, i * shortLen, buf, 2 * i * shortLen);
             }
 
             // add second half output of previous frame to windowed output of current frame
@@ -178,7 +178,7 @@ FilterBank.prototype.process = function(info, input, output, channel) {
             break;
 
         case ICStream.LONG_STOP_SEQUENCE:
-            mdctLong.process(input, 0, buf, 0);
+            mdctLong.full(input, 0, buf, 0);
 
             // add second half output of previous frame to windowed output of current frame
             // construct first half window using padding with 1's and 0's

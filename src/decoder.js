@@ -25,58 +25,63 @@ var CPEElement  = require('./cpe');
 var CCEElement  = require('./cce');
 var FilterBank  = require('./filter_bank');
 var tables      = require('./tables');
+var FIL = require('./fil');
+var SBR = require('./sbr/sbr');
 
-var AACDecoder = AV.Decoder.extend(function() {
-    AV.Decoder.register('mp4a', this);
-    AV.Decoder.register('aac ', this);
-    
-    // AAC profiles
-    const AOT_AAC_MAIN = 1, // no
-          AOT_AAC_LC = 2,   // yes
-          AOT_AAC_LTP = 4,  // no
-          AOT_ESCAPE = 31;
-          
-    // Channel configurations
-    const CHANNEL_CONFIG_NONE = 0,
-          CHANNEL_CONFIG_MONO = 1,
-          CHANNEL_CONFIG_STEREO = 2,
-          CHANNEL_CONFIG_STEREO_PLUS_CENTER = 3,
-          CHANNEL_CONFIG_STEREO_PLUS_CENTER_PLUS_REAR_MONO = 4,
-          CHANNEL_CONFIG_FIVE = 5,
-          CHANNEL_CONFIG_FIVE_PLUS_ONE = 6,
-          CHANNEL_CONFIG_SEVEN_PLUS_ONE = 8;
-          
-    this.prototype.init = function() {
+// AAC profiles
+const AOT_AAC_MAIN = 1, // no
+      AOT_AAC_LC = 2,   // yes
+      AOT_AAC_LTP = 4,  // no
+      AOT_AAC_SBR = 5,
+      AOT_AAC_PS = 29,
+      AOT_ESCAPE = 31;
+      
+// Channel configurations
+const CHANNEL_CONFIG_NONE = 0,
+      CHANNEL_CONFIG_MONO = 1,
+      CHANNEL_CONFIG_STEREO = 2,
+      CHANNEL_CONFIG_STEREO_PLUS_CENTER = 3,
+      CHANNEL_CONFIG_STEREO_PLUS_CENTER_PLUS_REAR_MONO = 4,
+      CHANNEL_CONFIG_FIVE = 5,
+      CHANNEL_CONFIG_FIVE_PLUS_ONE = 6,
+      CHANNEL_CONFIG_SEVEN_PLUS_ONE = 8;
+
+const SCE_ELEMENT = 0,
+      CPE_ELEMENT = 1,
+      CCE_ELEMENT = 2,
+      LFE_ELEMENT = 3,
+      DSE_ELEMENT = 4,
+      PCE_ELEMENT = 5,
+      FIL_ELEMENT = 6,
+      END_ELEMENT = 7;
+
+class AACDecoder extends AV.Decoder {            
+    init() {
       this.format.floatingPoint = true;
     }
     
-    this.prototype.setCookie = function(buffer) {
-        var data = AV.Stream.fromBuffer(buffer),
-            stream = new AV.Bitstream(data);
+    setCookie(buffer) {
+        var stream = AV.Bitstream.fromBuffer(buffer);
         
         this.config = {};
+        this.config.profile = this.decodeProfile(stream);
+        this.decodeSampleRate(stream, this.config);
         
-        this.config.profile = stream.read(5);
-        if (this.config.profile === AOT_ESCAPE)
-            this.config.profile = 32 + stream.read(6);
-            
-        this.config.sampleIndex = stream.read(4);
-        if (this.config.sampleIndex === 0x0f) {
-            this.config.sampleRate = stream.read(24);
-            for (var i = 0; i < tables.SAMPLE_RATES.length; i++) {
-                if (tables.SAMPLE_RATES[i] === this.config.sampleRate) {
-                    this.config.sampleIndex = i;
-                    break;
-                }
-            }
-        } else {
-            this.config.sampleRate = tables.SAMPLE_RATES[this.config.sampleIndex];
-        }
-            
         this.config.chanConfig = stream.read(4);
         this.format.channelsPerFrame = this.config.chanConfig; // sometimes m4a files encode this wrong
+        this.format.sampleRate = this.config.sampleRate;
         
         switch (this.config.profile) {
+            case AOT_AAC_PS:
+              this.config.psPresent = true;
+              // fall through
+              
+            case AOT_AAC_SBR:
+              this.config.sbrPresent = true;
+              this.format.sampleRate = this.decodeSampleRate(stream).sampleRate;
+              this.config.profile = this.decodeProfile(stream);
+              // fall through
+              
             case AOT_AAC_MAIN:
             case AOT_AAC_LC:
             case AOT_AAC_LTP:
@@ -109,20 +114,47 @@ var AACDecoder = AV.Decoder.extend(function() {
                 throw new Error('AAC profile ' + this.config.profile + ' not supported.');
         }
         
+        if (stream.available(11)) {
+            let type = stream.read(11);
+            switch (type) {
+                case 0x2B7: // sync extension
+                    let profile = this.decodeProfile(stream);
+                    if (profile === AOT_AAC_SBR) {
+                        this.config.sbrPresent = stream.read(1);
+                        if (this.config.sbrPresent) {
+                            this.format.sampleRate = this.decodeSampleRate(stream).sampleRate;
+                        }
+                    }
+                    break;
+            }
+        }
+        
         this.filter_bank = new FilterBank(false, this.config.chanConfig);        
-    };
+    }
     
-    const SCE_ELEMENT = 0,
-          CPE_ELEMENT = 1,
-          CCE_ELEMENT = 2,
-          LFE_ELEMENT = 3,
-          DSE_ELEMENT = 4,
-          PCE_ELEMENT = 5,
-          FIL_ELEMENT = 6,
-          END_ELEMENT = 7;
+    decodeProfile(stream) {
+      let profile = stream.read(5);
+      if (profile === AOT_ESCAPE) {
+          profile = 32 + stream.read(6);
+      }
+      
+      return profile;
+    }
     
+    decodeSampleRate(stream, out = {}) {
+      out.sampleIndex = stream.read(4);
+      if (out.sampleIndex === 0x0f) {
+          out.sampleRate = stream.read(24);
+          out.sampleIndex = tables.SAMPLE_INDEXES[out.sampleRate];
+      } else {
+          out.sampleRate = tables.SAMPLE_RATES[out.sampleIndex];
+      }
+      
+      return out;
+    }
+        
     // The main decoding function.
-    this.prototype.readChunk = function() {
+    readChunk() {
         var stream = this.bitstream;
         
         // check if there is an ADTS header, and read it if so
@@ -132,7 +164,8 @@ var AACDecoder = AV.Decoder.extend(function() {
         this.cces = [];
         var elements = [],
             config = this.config,
-            frameLength = config.frameLength,
+            mult = config.sbrPresent ? 2 : 1,
+            frameLength = mult * config.frameLength,
             elementType = null;
         
         while ((elementType = stream.read(3)) !== END_ELEMENT) {
@@ -146,6 +179,7 @@ var AACDecoder = AV.Decoder.extend(function() {
                     ics.id = id;
                     elements.push(ics);
                     ics.decode(stream, config, false);
+                    this.prev = ics;
                     break;
                     
                 // channel pair element
@@ -154,6 +188,7 @@ var AACDecoder = AV.Decoder.extend(function() {
                     cpe.id = id;
                     elements.push(cpe);
                     cpe.decode(stream, config);
+                    this.prev = cpe;
                     break;
                 
                 // channel coupling element
@@ -161,6 +196,7 @@ var AACDecoder = AV.Decoder.extend(function() {
                     var cce = new CCEElement(this.config);
                     this.cces.push(cce);
                     cce.decode(stream, config);
+                    this.prev = null;
                     break;
                     
                 // data-stream element
@@ -176,20 +212,29 @@ var AACDecoder = AV.Decoder.extend(function() {
                         
                     // skip for now...
                     stream.advance(count * 8);
+                    this.prev = null;
                     break;
                     
                 // program configuration element
                 case PCE_ELEMENT:
+                    this.prev = null;
                     throw new Error("TODO: PCE_ELEMENT")
                     break;
                     
                 // filler element
                 case FIL_ELEMENT:
-                    if (id === 15)
+                    if (id === 15) {
                         id += stream.read(8) - 1;
-                        
+                    }
+                    
+                    id *= 8;
+                    var end = stream.offset() + id;
+                    
+                    FIL.decode(stream, id, this.prev, this.config.sampleRate);
+                    this.prev = null;
+                    
                     // skip for now...
-                    stream.advance(id * 8);
+                    stream.seek(end);
                     break;
                     
                 default:
@@ -199,6 +244,12 @@ var AACDecoder = AV.Decoder.extend(function() {
         
         stream.align();
         this.process(elements);
+        
+        for (let element of elements) {
+            if (element.sbr) {
+                element.sbr.release();
+            }
+        }
         
         // Interleave channels
         var data = this.data,
@@ -213,21 +264,20 @@ var AACDecoder = AV.Decoder.extend(function() {
         }
         
         return output;
-    };
+    }
     
-    this.prototype.process = function(elements) {
+    process(elements) {
         var channels = this.config.chanConfig;
-        
-        // if (channels === 1 &&  psPresent)
-        // TODO: sbrPresent (2)
-        var mult = 1;
-        
+        var mult = this.config.sbrPresent ? 2 : 1;
         var len = mult * this.config.frameLength;
-        var data = this.data = [];
+        var data = this.data;
         
-        // Initialize channels
-        for (var i = 0; i < channels; i++) {
-            data[i] = new Float32Array(len);
+        // Only reallocate if needed
+        if (!data || data.length !== channels || data[0].length !== len) {
+            data = this.data = [];
+            for (var i = 0; i < channels; i++) {
+                data[i] = new Float32Array(len);
+            }
         }
         
         var channel = 0;
@@ -245,9 +295,9 @@ var AACDecoder = AV.Decoder.extend(function() {
                 throw new Error("Unknown element found.")
             }
         }
-    };
+    }
     
-    this.prototype.processSingle = function(element, channel) {
+    processSingle(element, channel) {
         var profile = this.config.profile,
             info = element.info,
             data = element.data;
@@ -276,13 +326,13 @@ var AACDecoder = AV.Decoder.extend(function() {
         if (element.gainPresent)
             throw new Error("Gain control not implemented");
             
-        if (this.sbrPresent)
-            throw new Error("SBR not implemented");
+        if (element.sbr)
+            element.sbr.process(this.data[channel], null, false);
             
         return 1;
-    };
+    }
     
-    this.prototype.processPair = function(element, channel) {
+    processPair(element, channel) {
         var profile = this.config.profile,
             left = element.left,
             right = element.right,
@@ -329,12 +379,13 @@ var AACDecoder = AV.Decoder.extend(function() {
         if (right.gainPresent)
             throw new Error("Gain control not implemented");
             
-        if (this.sbrPresent)
-            throw new Error("SBR not implemented");
-    };
+        if (element.sbr) {
+            element.sbr.process(this.data[channel], this.data[channel + 1], false);
+        }
+    }
     
     // Intensity stereo
-    this.prototype.processIS = function(element, left, right) {
+    processIS(element, left, right) {
         var ics = element.right,
             info = ics.info,
             offsets = info.swbOffsets,
@@ -373,10 +424,10 @@ var AACDecoder = AV.Decoder.extend(function() {
             
             groupOff += info.groupLength[g] * 128;
         }
-    };
+    }
     
     // Mid-side stereo
-    this.prototype.processMS = function(element, left, right) {
+    processMS(element, left, right) {
         var ics = element.left,
             info = ics.info,
             offsets = info.swbOffsets,
@@ -401,9 +452,9 @@ var AACDecoder = AV.Decoder.extend(function() {
             }
             groupOff += info.groupLength[g] * 128;
         }
-    };
+    }
     
-    this.prototype.applyChannelCoupling = function(element, couplingPoint, data1, data2) {
+    applyChannelCoupling(element, couplingPoint, data1, data2) {
         var cces = this.cces,
             isChannelPair = element instanceof CPEElement,
             applyCoupling = couplingPoint === CCEElement.AFTER_IMDCT ? 'applyIndependentCoupling' : 'applyDependentCoupling';
@@ -430,8 +481,11 @@ var AACDecoder = AV.Decoder.extend(function() {
                 }
             }
         }
-    };
+    }
     
-});
+}
+
+AV.Decoder.register('mp4a', AACDecoder);
+AV.Decoder.register('aac ', AACDecoder);
 
 module.exports = AACDecoder;
