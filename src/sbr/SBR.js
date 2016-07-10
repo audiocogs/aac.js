@@ -16,6 +16,7 @@ class SBR extends PooledObject {
   constructor() {
     super();
     this.sampleRate = 0;
+    this.stereo = true;
     this.header = new SBRHeader;
     this.tables = new FrequencyTables;
     this.cd = [new ChannelData, new ChannelData];
@@ -36,11 +37,14 @@ class SBR extends PooledObject {
     this.sampleRate = 2 * sampleRate;
   }
   
+  static decode(stream, sampleRate, stereo, crc) {
+    let sbr = this.getFromPool(sampleRate);
+    sbr.decode(stream, stereo, crc);
+    return sbr;
+  }
   
-  decode(stream, count, stereo, crc) {
+  decode(stream, stereo, crc) {
     this.stereo = stereo;
-    var pos = stream.offset();
-    var end = pos + count;
     
     if (crc) {
       stream.advance(10);
@@ -75,8 +79,6 @@ class SBR extends PooledObject {
         }
       }
     }
-    
-    stream.seek(end);
   }
   
   decodeSingleChannel(stream) {
