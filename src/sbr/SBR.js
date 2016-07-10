@@ -1,4 +1,4 @@
-import SBRHeader from './header';
+import SBRHeader from './SBRHeader';
 import FrequencyTables from './FrequencyTables';
 import ChannelData from './ChannelData';
 import AnalysisFilterbank from './AnalysisFilterbank';
